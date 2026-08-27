@@ -1,0 +1,32 @@
+# Python virtual environment
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+build/
+.vite/
+
+# Environment secrets
+.env
+.env.*
+
+# Generated data
+storage/
+test-results/
+playwright-report/
+coverage/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
