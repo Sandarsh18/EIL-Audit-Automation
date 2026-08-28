@@ -189,19 +189,30 @@ class InspectionRulesService:
                 # --- Inspection Days Calculation ---
                 if f_blank and u_blank:
                     notes.append("Inspection dates missing.")
-                elif f_blank:
-                    notes.append("Inspection From missing.")
-                elif u_blank:
-                    notes.append("Inspection Upto missing.")
-                elif f_inv or u_inv:
-                    notes.append("Invalid inspection date format.")
+                elif f_inv and not f_blank:
+                    notes.append("Invalid inspection From date format.")
+                elif u_inv and not u_blank:
+                    notes.append("Invalid inspection Upto date format.")
                 else:
-                    if f_dt > u_dt:
-                        notes.append("Inspection Upto is earlier than Inspection From.")
+                    # Treat missing Upto as From, and missing From as Upto
+                    if f_blank and not u_blank and not u_inv:
+                        f_dt = u_dt
+                        notes.append("Inspection From missing, using Upto date.")
+                        f_blank = False
+                    elif u_blank and not f_blank and not f_inv:
+                        u_dt = f_dt
+                        notes.append("Inspection Upto missing, using From date.")
+                        u_blank = False
+
+                    if f_blank or u_blank or f_inv or u_inv:
+                        pass # handled above
                     else:
-                        delta = (u_dt - f_dt).days + 1
-                        record_days = delta
-                        status = "VALID"
+                        if f_dt > u_dt:
+                            notes.append("Inspection Upto is earlier than Inspection From.")
+                        else:
+                            delta = (u_dt - f_dt).days + 1
+                            record_days = delta
+                            status = "VALID"
                         
                         # Apply Evaluation Month Filter FIRST
                         if f_dt.year == eval_year and f_dt.month == eval_month and u_dt.year == eval_year and u_dt.month == eval_month:
