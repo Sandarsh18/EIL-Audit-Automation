@@ -12,6 +12,8 @@ interface ReviewDashboardProps {
 
 type FilterStatus = 'ALL' | 'DRAFT' | 'WARNING' | 'BLOCKED' | 'APPROVED' | 'DELETED';
 
+const isNonZero = (val: any) => val !== null && val !== undefined && val !== '' && Number(val) !== 0;
+
 export const ReviewDashboard: React.FC<ReviewDashboardProps> = ({ sessionId, selectedKeys, evaluationMonth, onNext }) => {
   const [jobs, setJobs] = useState<JobReviewResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -273,22 +275,25 @@ export const ReviewDashboard: React.FC<ReviewDashboardProps> = ({ sessionId, sel
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredJobs.map(res => (
-                <tr key={res.job_number} data-test-id={`job-row-${res.job_number.toLowerCase()}`} className={`transition-colors ${expandedJob === res.job_number ? 'bg-indigo-50/50' : res.status === 'DELETED' ? 'bg-red-50 text-red-900 opacity-75' : res.status === 'APPROVED' ? 'bg-green-50/30' : 'hover:bg-gray-50'}`}>
+              {filteredJobs.map(res => {
+                const hasHighlight = isNonZero(res.fd) || isNonZero(res.running_orders) || isNonZero(res.ocs_done) || isNonZero(res.expediting) || isNonZero(res.inspection) || isNonZero(res.others) || isNonZero(res.calculated_total);
+                
+                return (
+                <tr key={res.job_number} data-test-id={`job-row-${res.job_number.toLowerCase()}`} className={`transition-colors ${expandedJob === res.job_number ? 'bg-indigo-50/50' : res.status === 'DELETED' ? 'bg-red-50 text-red-900 opacity-75' : res.status === 'APPROVED' ? 'bg-green-50/30' : hasHighlight ? 'bg-amber-50/50 hover:bg-amber-100/50' : 'hover:bg-gray-50'}`}>
                   <td className="px-4 py-3 font-black text-gray-800">{res.job_number}</td>
-                  <td className="px-4 py-3 text-gray-600">{res.fd}</td>
-                  <td className="px-4 py-3 text-gray-600">{res.running_orders}</td>
-                  <td className="px-4 py-3 font-medium">
+                  <td className={`px-4 py-3 text-gray-600 ${isNonZero(res.fd) ? 'bg-amber-100/50 font-semibold' : ''}`}>{res.fd}</td>
+                  <td className={`px-4 py-3 text-gray-600 ${isNonZero(res.running_orders) ? 'bg-amber-100/50 font-semibold' : ''}`}>{res.running_orders}</td>
+                  <td className={`px-4 py-3 font-medium ${isNonZero(res.ocs_done) ? 'bg-amber-100/50 font-semibold text-amber-900' : ''}`}>
                     {res.ocs_done !== null ? res.ocs_done : <span className="text-gray-400">—</span>}
                     {res.overrides['ocs_done']?.active && <span className="ml-2 text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full font-bold">OVR</span>}
                   </td>
-                  <td className="px-4 py-3 font-bold text-gray-700">{res.expediting !== null ? res.expediting : <span className="text-gray-400 italic">Blocked</span>}</td>
-                  <td className="px-4 py-3 font-bold text-gray-700">{res.inspection !== null ? res.inspection : <span className="text-gray-400 italic">Blocked</span>}</td>
-                  <td className="px-4 py-3 font-medium">
+                  <td className={`px-4 py-3 font-bold text-gray-700 ${isNonZero(res.expediting) ? 'bg-amber-100/50 text-amber-900' : ''}`}>{res.expediting !== null ? res.expediting : <span className="text-gray-400 italic">Blocked</span>}</td>
+                  <td className={`px-4 py-3 font-bold text-gray-700 ${isNonZero(res.inspection) ? 'bg-amber-100/50 text-amber-900' : ''}`}>{res.inspection !== null ? res.inspection : <span className="text-gray-400 italic">Blocked</span>}</td>
+                  <td className={`px-4 py-3 font-medium ${isNonZero(res.others) ? 'bg-amber-100/50 font-semibold text-amber-900' : ''}`}>
                     {res.others !== null ? res.others : <span className="text-gray-400">—</span>}
                     {res.overrides['others']?.active && <span className="ml-2 text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full font-bold">OVR</span>}
                   </td>
-                  <td className="px-4 py-3 font-black text-indigo-700 text-base">{res.calculated_total !== null ? res.calculated_total : <span className="text-gray-400 italic text-sm">Blocked</span>}</td>
+                  <td className={`px-4 py-3 font-black text-indigo-700 text-base ${isNonZero(res.calculated_total) ? 'bg-amber-100/50' : ''}`}>{res.calculated_total !== null ? res.calculated_total : <span className="text-gray-400 italic text-sm">Blocked</span>}</td>
                   <td className="px-4 py-3 text-center">
                     <div className={`inline-flex items-center font-bold px-2.5 py-1 rounded text-xs ${
                       res.status === 'BLOCKED' ? 'bg-red-100 text-red-700' :
@@ -359,7 +364,8 @@ export const ReviewDashboard: React.FC<ReviewDashboardProps> = ({ sessionId, sel
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

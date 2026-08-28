@@ -1,43 +1,80 @@
 # EIL Audit Automation
 
-Phase 1 implementation for the EIL Excel Inspection & Audit Processing internal web application.
-
-## ⚠️ PHASE 1 LIMITATIONS
-**PHASE 1 DOES NOT PERFORM AUDIT CALCULATIONS OR MODIFY EXCEL 3.**
-
-This phase establishes the foundational architecture:
-- Independent upload and validation of three Excel workbooks.
-- Extraction of sheet metadata, column metadata, and data type inference.
-- UI for inspecting the uploaded data in a read-only preview.
+The EIL Excel Inspection & Audit Processing internal web application.
 
 ## Architecture & Technology Stack
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS (Desktop-first UI).
 - **Backend**: Python, FastAPI, Pandas, OpenPyXL.
-- **Storage**: Local filesystem storage (`storage/uploads`) for immutable workbooks.
+- **Storage**: Local filesystem storage (`storage/`) for immutable workbooks and generated outputs.
 - **Session**: In-memory session tracking.
 
-## Directory Structure
-```
-eil-audit-automation/
-├── frontend/       # Vite + React + TS Frontend
-├── backend/        # FastAPI + Python Backend
-├── storage/        
-│   ├── uploads/    # Uploaded immutable source files
-│   └── working/    # (Future) Modifiable copies
-├── docker-compose.yml
-└── README.md
-```
+## Prerequisites
+To run the application, you only need the following installed on your machine:
+- **Docker**
+- **Docker Compose**
 
-## Local Setup & Startup
+*Note: The production compose file uses prebuilt Docker Hub images. Therefore, you do not need Python, Node.js, npm, or a local virtual environment to run the application.*
 
-### Docker (Recommended)
-You can start the entire stack using Docker Compose:
+## Production Deployment
+
+The intended workflow for a new user to start the application is:
+
+1. Clone or download this repository.
+2. Navigate to the project root directory.
+3. Create the required storage directory on your host machine.
+4. Pull the latest images and start the containers.
+
 ```bash
-docker-compose up --build
-```
-The frontend will be available at `http://localhost:5173` and the backend at `http://localhost:8000`.
+# 1. Create the persistent storage directory
+mkdir -p storage
 
-### Manual Startup
+# 2. Pull the prebuilt images from Docker Hub
+docker compose -f docker-compose.prod.yml pull
+
+# 3. Start the application in the background
+docker compose -f docker-compose.prod.yml up -d
+```
+
+### Current Image Versions
+The `docker-compose.prod.yml` uses the following Docker Hub images:
+- `sandarsh/eil-backend:v1.2.0`
+- `sandarsh/eil-frontend:v1.2.0`
+
+### Application URLs
+
+Once the containers are running, you can access the application at:
+- **Frontend**: http://localhost:5173
+- **Backend (API Docs)**: http://localhost:8000/docs
+
+### Persistent Storage
+The `storage/` directory is mounted from the host machine into the backend container. This ensures that any uploaded Excel files and generated audit outputs persist across container recreation and restarts.
+
+### Useful Commands
+
+Check the status of the running containers:
+```bash
+docker compose -f docker-compose.prod.yml ps
+```
+
+View the logs of the application:
+```bash
+docker compose -f docker-compose.prod.yml logs
+```
+
+Stop the application:
+```bash
+docker compose -f docker-compose.prod.yml down
+```
+
+## Running Locally for Development
+
+If you wish to develop or modify the source code, you can start the entire stack building directly from the source:
+```bash
+docker compose up -d --build
+```
+
+**Manual Startup**:
+
 **Backend**:
 ```bash
 cd backend
@@ -55,30 +92,21 @@ npm run dev
 ```
 
 ## How to Use
-1. Open the frontend dashboard.
+1. Open the frontend dashboard at `http://localhost:5173`.
 2. The system automatically creates a session.
-3. Click on the upload slots for **Excel 1**, **Excel 2**, and **Excel 3** to upload your `.xlsx` files.
-4. After successful uploads, click **Inspect Excel X** to load the workbook inspector.
-5. The inspector will display all available sheets. Click a sheet to view row/column counts and a tabular preview of the data (with inferred data types).
-
-## API Overview
-- `GET /api/health` - Health check.
-- `POST /api/sessions` - Creates a new processing session.
-- `POST /api/sessions/{session_id}/files/{workbook_type}` - Uploads a workbook.
-- `GET /api/sessions/{session_id}/workbooks/{workbook_type}` - Retrieves workbook metadata.
-- `GET /api/sessions/{session_id}/workbooks/{workbook_type}/sheets/{sheet_name}` - Retrieves sheet preview and columns.
+3. Upload the required **Excel 1**, **Excel 2**, and **Excel 3** `.xlsx` files.
+4. Proceed to the Mapping Step to align the column headers.
+5. Process the jobs to view the Analysis Dashboard and Review screens.
+6. Generate and download the final audit output Excel file.
 
 ## Testing
-To run the automated backend tests (which use synthetic `.xlsx` files):
+To run the automated E2E tests:
+```bash
+./run_e2e.sh
+```
+
+To run the backend unit tests:
 ```bash
 cd backend
 pytest tests/
 ```
-
-## Planned Future Phases
-- **Phase 2**: Column mapping UI.
-- **Phase 3**: Job Number matching.
-- **Phase 4-5**: Excel 1 & 2 business rules and inspection processing.
-- **Phase 6**: Excel 3 calculation engine.
-- **Phase 7**: Result/review screen with manual edits.
-- **Phase 8**: Excel 3 workbook modification (editing the working copy while preserving original structure).
