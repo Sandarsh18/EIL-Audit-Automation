@@ -204,6 +204,10 @@ class OutputEngine:
         if eval_month_str:
             try:
                 dt = datetime.strptime(eval_month_str, "%Y-%m")
+                
+                # Rename the sheet dynamically based on evaluation month (e.g., ConsolidatedMHrequirementAug26)
+                sheet.title = f"ConsolidatedMHrequirement{dt.strftime('%b%y')}"
+                
                 formatted_month = dt.strftime("%b'%y")
                 pattern = re.compile(r"for\s+[A-Za-z]{3}\s*'\d{2}")
                 for row in sheet.iter_rows():

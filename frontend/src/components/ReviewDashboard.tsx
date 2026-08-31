@@ -8,19 +8,22 @@ interface ReviewDashboardProps {
   selectedKeys: string[];
   evaluationMonth: string;
   onNext: () => void;
+  customColumns?: import('../types').CustomColumnData[];
+  setCustomColumns?: (cols: import('../types').CustomColumnData[]) => void;
 }
 
 type FilterStatus = 'ALL' | 'DRAFT' | 'WARNING' | 'BLOCKED' | 'APPROVED' | 'DELETED';
 
 const isNonZero = (val: any) => val !== null && val !== undefined && val !== '' && Number(val) !== 0;
 
-export const ReviewDashboard: React.FC<ReviewDashboardProps> = ({ sessionId, selectedKeys, evaluationMonth, onNext }) => {
+export const ReviewDashboard: React.FC<ReviewDashboardProps> = ({ sessionId, selectedKeys, evaluationMonth, onNext, customColumns = [], setCustomColumns = () => {} }) => {
   const [jobs, setJobs] = useState<JobReviewResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   const [filter, setFilter] = useState<FilterStatus>('ALL');
   const [search, setSearch] = useState('');
+  const [newColumnHeading, setNewColumnHeading] = useState('');
   
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
   
@@ -698,7 +701,77 @@ export const ReviewDashboard: React.FC<ReviewDashboardProps> = ({ sessionId, sel
         );
       })()}
 
-      <div className="mt-8 pt-6 border-t border-gray-200 flex justify-end">
+      <div className="mt-8 mb-6 bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h3 className="text-lg font-bold text-gray-800 mb-1 uppercase tracking-wider">Custom Columns</h3>
+        <p className="text-sm text-gray-500 mb-4">Add additional columns that will be injected into the final generated output for these jobs.</p>
+        <div className="flex gap-2 mb-4">
+          <input 
+            type="text"
+            placeholder="Column Heading"
+            value={newColumnHeading}
+            onChange={e => setNewColumnHeading(e.target.value)}
+            className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          />
+          <button 
+            onClick={() => {
+              if (newColumnHeading.trim()) {
+                setCustomColumns([...customColumns, { heading: newColumnHeading.trim(), data: {} }]);
+                setNewColumnHeading('');
+              }
+            }}
+            className="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded text-sm font-bold shadow-sm transition-colors"
+          >
+            + Add Column
+          </button>
+        </div>
+        
+        {customColumns.length > 0 && (
+          <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-gray-50 text-gray-600 font-bold uppercase text-xs">
+                <tr>
+                  <th className="px-4 py-3 w-32 border-b border-r">Job No.</th>
+                  {customColumns.map((c, i) => (
+                    <th key={i} className="px-4 py-3 border-b border-r relative group bg-indigo-50/50">
+                      {c.heading}
+                      <button 
+                        onClick={() => setCustomColumns(customColumns.filter((_, idx) => idx !== i))}
+                        className="absolute right-2 text-red-500 hidden group-hover:block top-1/2 -translate-y-1/2 bg-white rounded-full px-1.5 shadow"
+                        title="Remove Column"
+                      >
+                        ×
+                      </button>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {jobs.map(job => (
+                  <tr key={job.job_number} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 border-r font-bold text-gray-700 bg-gray-50">{job.job_number}</td>
+                    {customColumns.map((col, i) => (
+                      <td key={i} className="px-0 py-0 border-r">
+                        <input 
+                          type="text" 
+                          className="w-full h-full px-4 py-2 outline-none focus:bg-indigo-50 transition-colors"
+                          value={col.data[job.job_number] || ''}
+                          onChange={e => {
+                            const newCols = [...customColumns];
+                            newCols[i].data[job.job_number] = e.target.value;
+                            setCustomColumns(newCols);
+                          }}
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-4 pt-6 border-t border-gray-200 flex justify-end">
         <button
           onClick={onNext}
           disabled={counts.approved === 0}

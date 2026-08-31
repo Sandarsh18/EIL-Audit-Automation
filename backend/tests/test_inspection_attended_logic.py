@@ -84,7 +84,7 @@ def test_inspection_attended_calculation_isolation():
         f.write(resp_dl.content)
         
     wb = openpyxl.load_workbook(out_path, data_only=True)
-    sheet = wb["Sheet1"]
+    sheet = wb["ConsolidatedMHrequirementAug26"]
     
     headers = [str(cell.value) for cell in sheet[1]]
     data = list(sheet.iter_rows(min_row=2, values_only=True))
