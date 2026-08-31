@@ -4,6 +4,10 @@ export interface Session {
   excel2_file_id?: string;
   excel3_file_id?: string;
   created_at: string;
+  mapping?: MappingConfiguration;
+  evaluation_month?: string;
+  generated_output_path?: string;
+  generated_output_id?: string;
 }
 
 export interface ColumnMetadata {
