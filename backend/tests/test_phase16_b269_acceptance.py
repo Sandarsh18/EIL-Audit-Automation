@@ -119,9 +119,9 @@ def test_phase16_b269_acceptance():
     # Verify the EXACT 14 columns
     EXPECTED_HEADERS = [
         "Job No", "No. of Running orders", "Orders for FD f/up", "OCS done",
-        "Exp.", "Inspn", "Others", "Total", "*Others/ Remarks",
+        "Exp.", "Inspn", "Others", "Meeting", "Total", "*Others/ Remarks",
         "Insp/ Project Coordinators", "MH available as on", 
-        "MH to be released for Aug'26", "Allotted", "8518 reqd", "Meeting"
+        "MH to be released for Aug'26", "Allotted", "8518 reqd"
     ]
     
     header_vals = []

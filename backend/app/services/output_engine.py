@@ -172,7 +172,7 @@ class OutputEngine:
             if not request.custom_columns:
                 request.custom_columns = []
             if not any(cc.heading.lower() == "meeting" for cc in request.custom_columns):
-                request.custom_columns.append(meeting_cc)
+                request.custom_columns.insert(0, meeting_cc)
         
         working_dir = os.path.join(os.path.dirname(UPLOAD_DIR), "working", session_id)
         os.makedirs(working_dir, exist_ok=True)
@@ -224,16 +224,29 @@ class OutputEngine:
             if cell.value:
                 headers[str(cell.value).strip()] = col_idx
                 
-        # Append Custom Columns headers if provided
+        # Insert Custom Columns headers if provided
         custom_column_indices = {}
         if request.custom_columns:
-            start_col = sheet.max_column + 1
+            tot_col_idx = headers.get(mapping.get('total'))
+            num_cols = len(request.custom_columns)
+            
+            if tot_col_idx:
+                sheet.insert_cols(tot_col_idx, amount=num_cols)
+                start_col = tot_col_idx
+                
+                # Update headers map since columns shifted right
+                for key, val in list(headers.items()):
+                    if val >= tot_col_idx:
+                        headers[key] = val + num_cols
+            else:
+                start_col = sheet.max_column + 1
+                
             for i, cc in enumerate(request.custom_columns):
                 col_idx = start_col + i
                 sheet.cell(row=header_row, column=col_idx).value = cc.heading
                 custom_column_indices[cc.heading] = col_idx
                 # Apply style from previous header if possible
-                prev_cell = sheet.cell(row=header_row, column=col_idx - 1)
+                prev_cell = sheet.cell(row=header_row, column=start_col - 1)
                 if prev_cell.has_style:
                     sheet.cell(row=header_row, column=col_idx).font = copy.copy(prev_cell.font)
                     sheet.cell(row=header_row, column=col_idx).fill = copy.copy(prev_cell.fill)

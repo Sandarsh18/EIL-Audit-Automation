@@ -1,6 +1,6 @@
 services:
   backend:
-    image: sandarsh/eil-backend:v1.3.0
+    image: sandarsh/eil-backend:v1.4.0
     ports:
       - "8000:8000"
     volumes:
@@ -9,7 +9,7 @@ services:
       PYTHONPATH: /app
 
   frontend:
-    image: sandarsh/eil-frontend:v1.3.0
+    image: sandarsh/eil-frontend:v1.4.0
     ports:
       - "5173:5173"
     depends_on:

@@ -273,6 +273,18 @@ export const ReviewDashboard: React.FC<ReviewDashboardProps> = ({ sessionId, sel
                 <th className="px-4 py-3">Inspection</th>
                 <th className="px-4 py-3">Others</th>
                 <th className="px-4 py-3">Meeting</th>
+                {customColumns.map((c, i) => (
+                  <th key={i} className="px-4 py-3 relative group bg-indigo-50/20 text-indigo-900 border-l border-r border-indigo-100">
+                    {c.heading}
+                    <button 
+                      onClick={() => setCustomColumns(customColumns.filter((_, idx) => idx !== i))}
+                      className="absolute right-2 text-red-500 hidden group-hover:block top-1/2 -translate-y-1/2 bg-white rounded-full px-1.5 shadow"
+                      title="Remove Column"
+                    >
+                      ×
+                    </button>
+                  </th>
+                ))}
                 <th className="px-4 py-3 text-indigo-700">Total</th>
                 <th className="px-4 py-3 text-center">Status</th>
                 <th className="px-4 py-3 text-right">Action</th>
@@ -301,6 +313,24 @@ export const ReviewDashboard: React.FC<ReviewDashboardProps> = ({ sessionId, sel
                     {res.meeting !== null ? res.meeting : <span className="text-gray-400">—</span>}
                     {res.overrides['meeting']?.active && <span className="ml-2 text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full font-bold">OVR</span>}
                   </td>
+                  {customColumns.map((col, i) => {
+                    const isNumber = !isNaN(Number(col.data[res.job_number])) && col.data[res.job_number] !== '' && col.data[res.job_number] !== null && col.data[res.job_number] !== undefined;
+                    const isNonZeroNum = isNumber && Number(col.data[res.job_number]) !== 0;
+                    return (
+                      <td key={i} className={`p-0 border-l border-r border-indigo-50 min-w-[120px] ${isNonZeroNum ? 'bg-amber-100/50' : ''}`}>
+                        <input 
+                          type="text" 
+                          className="w-full h-full min-h-[44px] px-4 py-2 outline-none focus:bg-indigo-50 focus:ring-2 focus:ring-inset focus:ring-indigo-500 transition-colors bg-transparent"
+                          value={col.data[res.job_number] || ''}
+                          onChange={e => {
+                            const newCols = [...customColumns];
+                            newCols[i].data[res.job_number] = e.target.value;
+                            setCustomColumns(newCols);
+                          }}
+                        />
+                      </td>
+                    );
+                  })}
                   <td className={`px-4 py-3 font-black text-indigo-700 text-base ${isNonZero(res.calculated_total) ? 'bg-amber-100/50' : ''}`}>{res.calculated_total !== null ? res.calculated_total : <span className="text-gray-400 italic text-sm">Blocked</span>}</td>
                   <td className="px-4 py-3 text-center">
                     <div className={`inline-flex items-center font-bold px-2.5 py-1 rounded text-xs ${
@@ -725,50 +755,7 @@ export const ReviewDashboard: React.FC<ReviewDashboardProps> = ({ sessionId, sel
           </button>
         </div>
         
-        {customColumns.length > 0 && (
-          <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-gray-50 text-gray-600 font-bold uppercase text-xs">
-                <tr>
-                  <th className="px-4 py-3 w-32 border-b border-r">Job No.</th>
-                  {customColumns.map((c, i) => (
-                    <th key={i} className="px-4 py-3 border-b border-r relative group bg-indigo-50/50">
-                      {c.heading}
-                      <button 
-                        onClick={() => setCustomColumns(customColumns.filter((_, idx) => idx !== i))}
-                        className="absolute right-2 text-red-500 hidden group-hover:block top-1/2 -translate-y-1/2 bg-white rounded-full px-1.5 shadow"
-                        title="Remove Column"
-                      >
-                        ×
-                      </button>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {jobs.map(job => (
-                  <tr key={job.job_number} className="hover:bg-gray-50">
-                    <td className="px-4 py-2 border-r font-bold text-gray-700 bg-gray-50">{job.job_number}</td>
-                    {customColumns.map((col, i) => (
-                      <td key={i} className="px-0 py-0 border-r">
-                        <input 
-                          type="text" 
-                          className="w-full h-full px-4 py-2 outline-none focus:bg-indigo-50 transition-colors"
-                          value={col.data[job.job_number] || ''}
-                          onChange={e => {
-                            const newCols = [...customColumns];
-                            newCols[i].data[job.job_number] = e.target.value;
-                            setCustomColumns(newCols);
-                          }}
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+
       </div>
 
       <div className="mt-4 pt-6 border-t border-gray-200 flex justify-end">
