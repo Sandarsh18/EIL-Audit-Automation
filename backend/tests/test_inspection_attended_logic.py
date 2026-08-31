@@ -68,7 +68,7 @@ def test_inspection_attended_calculation_isolation():
     b269_calc = calc_resp.json()[0]
     
     # Assert it used Attended (12 - 10 = 2), not Date (2 - 1 = 1)
-    assert b269_calc["inspection"] == 3
+    assert b269_calc["inspection"] == 24.0
     
     client.post(f"/api/sessions/{s_id}/jobs/B269/approve", json={"acknowledge_warnings": True})
     
@@ -93,7 +93,7 @@ def test_inspection_attended_calculation_isolation():
     insp_idx = headers.index("Inspn")
     
     # Assert output workbook has the correct value calculated from Attended
-    assert b269_row[insp_idx] == 3
+    assert b269_row[insp_idx] == 24
     
     wb.close()
     

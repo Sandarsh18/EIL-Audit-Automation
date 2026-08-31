@@ -166,7 +166,8 @@ class CombinedEngineService:
             # Inspection strictly from Excel 2, or manual override
             if e2 and e2.total_inspection_days is not None:
                 print(f"INTEGER CONVERSION: job={job}, field=e2_inspection, value={e2.total_inspection_days}, type={type(e2.total_inspection_days)}")
-            inspection = m_input.inspection if m_input.inspection is not None else (int(e2.total_inspection_days) if e2 and e2.total_inspection_days is not None else 0)
+            base_inspection = int(e2.total_inspection_days) if e2 and e2.total_inspection_days is not None else 0
+            inspection = m_input.inspection if m_input.inspection is not None else (base_inspection * 8)
             
             # Derived logic
             expediting_is_native = False

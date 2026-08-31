@@ -88,7 +88,7 @@ def test_review_overrides(setup_review_session):
     res = resp.json()
     assert res["ocs_done"] == 4
     assert res["expediting"] == (3+4)*2
-    assert res["calculated_total"] == 14 + 3 + 0
+    assert res["calculated_total"] == 14 + 24 + 0
     assert "ocs_done" in res["overrides"]
     assert res["overrides"]["ocs_done"]["override_value"] == 4
     assert res["overrides"]["ocs_done"]["source_value"] == 0 # Source was 0
@@ -100,7 +100,7 @@ def test_review_overrides(setup_review_session):
     assert resp.status_code == 200
     res = resp.json()
     assert res["others"] == 10
-    assert res["calculated_total"] == 14 + 3 + 10
+    assert res["calculated_total"] == 14 + 24 + 10
     
     # 3/4. Invalid text/type rejected
     resp = client.post(f"/api/sessions/{s_id}/jobs/J_FULL/overrides", json={"field": "ocs_done", "value": "abc"})
@@ -123,7 +123,7 @@ def test_review_resets(setup_review_session):
     res = resp.json()
     assert res["ocs_done"] == 0 # Reset to 0 (default from Excel 1)
     assert res["others"] == 0 # Reset to 0 (default)
-    assert res["calculated_total"] == 9.0 # (3+0)*2 + 3 + 0
+    assert res["calculated_total"] == 30.0 # (3+0)*2 + 24 + 0
     assert len(res["overrides"]) > 0
     assert res["overrides"]["ocs_done"]["active"] is False
 

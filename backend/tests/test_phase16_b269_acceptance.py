@@ -98,9 +98,9 @@ def test_phase16_b269_acceptance():
     assert b269["running_orders"] == 4
     assert b269["ocs_done"] == 9
     assert b269["expediting"] == 26 # (4 + 9) * 2
-    assert b269["inspection"] == 8 # Strict date bounds enforced
+    assert b269["inspection"] == 64.0 # Strict date bounds enforced
     assert b269["others"] == 0
-    assert b269["calculated_total"] == 34 # 26 + 8 + 0
+    assert b269["calculated_total"] == 90.0 # 26 + 64 + 0
     
     # 4. Generate Output (Approve and write)
     client.post(f"/api/sessions/{s_id}/jobs/B269/approve", json={"acknowledge_warnings": True})
