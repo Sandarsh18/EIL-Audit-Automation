@@ -228,6 +228,16 @@ class OutputEngine:
             if cell.value:
                 headers[str(cell.value).strip()] = col_idx
                 
+        # Unmerge any horizontal merges in the tabular data area to prevent openpyxl 
+        # from corrupting the layout when we insert custom columns.
+        # This guarantees Total and Custom Columns occupy exactly one logical column each.
+        ranges_to_unmerge = []
+        for merged_range in list(sheet.merged_cells.ranges):
+            if merged_range.max_row >= header_row and merged_range.min_col != merged_range.max_col:
+                ranges_to_unmerge.append(merged_range)
+        for mr in ranges_to_unmerge:
+            sheet.unmerge_cells(str(mr))
+
         # Insert Custom Columns headers if provided
         custom_column_indices = {}
         if request.custom_columns:
