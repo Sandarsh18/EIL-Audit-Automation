@@ -213,17 +213,17 @@ class InspectionRulesService:
                             delta = (u_dt - f_dt).days + 1
                             record_days = delta
                             status = "VALID"
-                        
-                        # Apply Evaluation Month Filter FIRST
-                        if f_dt.year == eval_year and f_dt.month == eval_month and u_dt.year == eval_year and u_dt.month == eval_month:
-                            valid_count += 1
-                            total_days += record_days
-                        else:
-                            status = "EXCLUDED"
-                            if f_dt.year != eval_year or u_dt.year != eval_year:
-                                excluded_reason = f"Wrong year (Expected {eval_year})"
+                            
+                            # Apply Evaluation Month Filter FIRST
+                            if f_dt.year == eval_year and f_dt.month == eval_month and u_dt.year == eval_year and u_dt.month == eval_month:
+                                valid_count += 1
+                                total_days += record_days
                             else:
-                                excluded_reason = f"Wrong month (Expected {eval_month})"
+                                status = "EXCLUDED"
+                                if f_dt.year != eval_year or u_dt.year != eval_year:
+                                    excluded_reason = f"Wrong year (Expected {eval_year})"
+                                else:
+                                    excluded_reason = f"Wrong month (Expected {eval_month})"
 
                         if raw_days is not None and not pd.isna(raw_days):
                             try:

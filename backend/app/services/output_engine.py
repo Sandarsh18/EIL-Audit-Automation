@@ -2,6 +2,7 @@ import os
 import shutil
 import hashlib
 import openpyxl
+import copy
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Tuple, Optional
 from fastapi import HTTPException
@@ -37,6 +38,9 @@ class OutputEngine:
         from app.config import UPLOAD_DIR
         e3_path = os.path.join(UPLOAD_DIR, f"{session.excel3_file_id}.xlsx")
         
+        if not os.path.exists(e3_path):
+            raise HTTPException(400, "Original Excel 3 not found on disk. Please upload it again.")
+            
         wb = openpyxl.load_workbook(e3_path, data_only=False)
         reviews = ReviewService.get_reviews(session_id, request.job_numbers, request.evaluation_month)
         job_reviews = {r.job_number: r for r in reviews}
@@ -266,7 +270,6 @@ class OutputEngine:
                 elif v_lower == "total":
                     total_row_orig = r_idx
 
-        import copy
         default_style_row = header_row + 1
         styles = {}
         if default_style_row <= max_row:
