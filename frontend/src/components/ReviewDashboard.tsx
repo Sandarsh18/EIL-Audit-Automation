@@ -27,7 +27,7 @@ export const ReviewDashboard: React.FC<ReviewDashboardProps> = ({ sessionId, sel
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   
   // Pending override state for the currently expanded job
-  const [pendingOverrides, setPendingOverrides] = useState<{ field: 'ocs_done' | 'others' | 'expediting', value: string, reason: string } | null>(null);
+  const [pendingOverrides, setPendingOverrides] = useState<{ field: 'ocs_done' | 'others' | 'expediting' | 'meeting', value: string, reason: string } | null>(null);
 
   const fetchReviews = async () => {
     try {
@@ -269,6 +269,7 @@ export const ReviewDashboard: React.FC<ReviewDashboardProps> = ({ sessionId, sel
                 <th className="px-4 py-3">Expediting</th>
                 <th className="px-4 py-3">Inspection</th>
                 <th className="px-4 py-3">Others</th>
+                <th className="px-4 py-3">Meeting</th>
                 <th className="px-4 py-3 text-indigo-700">Total</th>
                 <th className="px-4 py-3 text-center">Status</th>
                 <th className="px-4 py-3 text-right">Action</th>
@@ -276,7 +277,7 @@ export const ReviewDashboard: React.FC<ReviewDashboardProps> = ({ sessionId, sel
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filteredJobs.map(res => {
-                const hasHighlight = isNonZero(res.fd) || isNonZero(res.running_orders) || isNonZero(res.ocs_done) || isNonZero(res.expediting) || isNonZero(res.inspection) || isNonZero(res.others) || isNonZero(res.calculated_total);
+                const hasHighlight = isNonZero(res.fd) || isNonZero(res.running_orders) || isNonZero(res.ocs_done) || isNonZero(res.expediting) || isNonZero(res.inspection) || isNonZero(res.others) || isNonZero(res.meeting) || isNonZero(res.calculated_total);
                 
                 return (
                 <tr key={res.job_number} data-test-id={`job-row-${res.job_number.toLowerCase()}`} className={`transition-colors ${expandedJob === res.job_number ? 'bg-indigo-50/50' : res.status === 'DELETED' ? 'bg-red-50 text-red-900 opacity-75' : res.status === 'APPROVED' ? 'bg-green-50/30' : hasHighlight ? 'bg-amber-50/50 hover:bg-amber-100/50' : 'hover:bg-gray-50'}`}>
@@ -292,6 +293,10 @@ export const ReviewDashboard: React.FC<ReviewDashboardProps> = ({ sessionId, sel
                   <td className={`px-4 py-3 font-medium ${isNonZero(res.others) ? 'bg-amber-100/50 font-semibold text-amber-900' : ''}`}>
                     {res.others !== null ? res.others : <span className="text-gray-400">—</span>}
                     {res.overrides['others']?.active && <span className="ml-2 text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full font-bold">OVR</span>}
+                  </td>
+                  <td className={`px-4 py-3 font-medium ${isNonZero(res.meeting) ? 'bg-amber-100/50 font-semibold text-amber-900' : ''}`}>
+                    {res.meeting !== null ? res.meeting : <span className="text-gray-400">—</span>}
+                    {res.overrides['meeting']?.active && <span className="ml-2 text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full font-bold">OVR</span>}
                   </td>
                   <td className={`px-4 py-3 font-black text-indigo-700 text-base ${isNonZero(res.calculated_total) ? 'bg-amber-100/50' : ''}`}>{res.calculated_total !== null ? res.calculated_total : <span className="text-gray-400 italic text-sm">Blocked</span>}</td>
                   <td className="px-4 py-3 text-center">
@@ -608,6 +613,53 @@ export const ReviewDashboard: React.FC<ReviewDashboardProps> = ({ sessionId, sel
                   {job.overrides['expediting']?.reason && (
                     <div className="mt-2 text-[11px] text-gray-500 bg-gray-50 p-2 rounded">
                       <span className="font-bold">Reason:</span> {job.overrides['expediting'].reason}
+                    </div>
+                  )}
+                </div>
+
+                {/* Meeting Edit */}
+                <div className="bg-white p-4 rounded-lg border shadow-sm">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-bold text-gray-700 text-sm">Meeting</span>
+                    {job.overrides['meeting'] ? (
+                      <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Overridden</span>
+                    ) : (
+                      <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Source</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500 mb-3">
+                    Source value: <span className="font-bold text-gray-800">{job.overrides['meeting']?.source_value ?? (job.meeting !== null ? job.meeting : 'Missing')}</span>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <input 
+                      type="text"
+                      className="border border-gray-300 rounded px-2 py-1 text-sm w-20 focus:ring-2 focus:ring-indigo-500"
+                      value={pendingOverrides?.field === 'meeting' ? pendingOverrides.value : (job.meeting !== null ? job.meeting : '')}
+                      onChange={e => setPendingOverrides({ field: 'meeting', value: e.target.value, reason: pendingOverrides?.field === 'meeting' ? pendingOverrides.reason : '' })}
+                    />
+                    {pendingOverrides?.field === 'meeting' && (
+                      <>
+                        <input 
+                          type="text"
+                          placeholder="Reason for change..."
+                          className="border border-gray-300 rounded px-2 py-1 text-sm flex-1 focus:ring-2 focus:ring-indigo-500"
+                          value={pendingOverrides.reason}
+                          onChange={e => setPendingOverrides({ ...pendingOverrides, reason: e.target.value })}
+                        />
+                        <button 
+                          onClick={() => handleApplyOverride(job.job_number)}
+                          className="bg-indigo-600 text-white rounded px-3 py-1 text-xs font-bold flex items-center hover:bg-indigo-700"
+                        >
+                          <Save className="w-3 h-3 mr-1" /> Save
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  
+                  {job.overrides['meeting']?.reason && (
+                    <div className="mt-2 text-[11px] text-gray-500 bg-gray-50 p-2 rounded">
+                      <span className="font-bold">Reason:</span> {job.overrides['meeting'].reason}
                     </div>
                   )}
                 </div>

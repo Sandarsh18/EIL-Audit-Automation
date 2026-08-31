@@ -202,6 +202,7 @@ export interface CombinedJobSummary {
   native_expediting_used: boolean;
   inspection: number | null;
   others: number | null;
+  meeting?: number | null;
   calculated_total: number | null;
   status: 'COMPLETE' | 'WARNING' | 'BLOCKED';
   warnings: string[];
@@ -263,7 +264,7 @@ export interface ManualOverride {
 }
 
 export interface OverrideRequest {
-  field: 'ocs_done' | 'others' | 'expediting';
+  field: 'ocs_done' | 'others' | 'expediting' | 'meeting';
   value: number | null;
   reason: string | null;
 }

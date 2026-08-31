@@ -112,6 +112,28 @@ class OutputEngine:
                     formula_overwrite_approved=False
                 ))
                 
+            has_meeting = getattr(job_review, 'meeting', None) is not None
+            if has_meeting:
+                # Add virtual column for preview
+                meeting_val = job_review.meeting
+                cells_to_modify.append(ChangePlanCell(
+                    session_id=session_id,
+                    job_number=job_no,
+                    sheet_name=target_sheet,
+                    row_index=virtual_row_index,
+                    column_index=999, # Virtual index
+                    cell_address=f"CUSTOM_{virtual_row_index}",
+                    logical_field="meeting",
+                    old_value=None,
+                    new_value=meeting_val,
+                    action=ActionType.MODIFY_VALUE,
+                    reason="Output generation",
+                    source="Business Rule",
+                    approval_status=job_review.status,
+                    is_formula=False,
+                    formula_overwrite_approved=False
+                ))
+                
         wb.close()
         
         return ChangePlan(
@@ -138,6 +160,19 @@ class OutputEngine:
         
         mapping = session.mapping.excel3.columns.model_dump(exclude_none=True)
         target_sheet = session.mapping.excel3.sheet
+        
+        # Inject Meeting as a custom column if there is meeting data
+        has_meeting = any(getattr(jr, 'meeting', None) is not None for jr in job_reviews.values())
+        if has_meeting:
+            from app.schemas.output import CustomColumnData
+            meeting_cc = CustomColumnData(
+                heading="Meeting",
+                data={j: getattr(jr, 'meeting') for j, jr in job_reviews.items() if getattr(jr, 'meeting', None) is not None}
+            )
+            if not request.custom_columns:
+                request.custom_columns = []
+            if not any(cc.heading.lower() == "meeting" for cc in request.custom_columns):
+                request.custom_columns.append(meeting_cc)
         
         working_dir = os.path.join(os.path.dirname(UPLOAD_DIR), "working", session_id)
         os.makedirs(working_dir, exist_ok=True)

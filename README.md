@@ -15,7 +15,7 @@
 [![Pandas](https://img.shields.io/badge/Pandas-Data%20Analysis-150458.svg?style=flat-square&logo=pandas&logoColor=white)](#)
 [![OpenPyXL](https://img.shields.io/badge/OpenPyXL-Excel%20Engine-brightgreen.svg?style=flat-square)](#)
 [![Playwright](https://img.shields.io/badge/Tested_via-Playwright-2EAD33.svg?style=flat-square&logo=playwright&logoColor=white)](#)
-[![Version](https://img.shields.io/badge/Version-v1.2.0-blue.svg?style=flat-square)](#)
+[![Version](https://img.shields.io/badge/Version-v1.3.0-blue.svg?style=flat-square)](#)
 
 </div>
 
@@ -158,7 +158,7 @@ cd eil
 # Create persistent storage directory
 mkdir -p storage
 
-# Pull the prebuilt v1.2.0 images & start
+# Pull the prebuilt v1.3.0 images & start
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
 ```

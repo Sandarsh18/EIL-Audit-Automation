@@ -8,6 +8,7 @@ class ManualInputs(BaseModel):
     expediting: Optional[float] = None
     inspection: Optional[float] = None
     others: Optional[float] = None
+    meeting: Optional[float] = None
 
 class CombinedCalculationRequest(BaseModel):
     job_numbers: List[str]
@@ -31,6 +32,7 @@ class CombinedJobSummary(BaseModel):
     native_expediting_used: bool = False
     inspection: Optional[float]
     others: Optional[float]
+    meeting: Optional[float] = None
     calculated_total: Optional[float] = None
     status: str # "COMPLETE", "WARNING", "BLOCKED"
     warnings: List[str]
