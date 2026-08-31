@@ -9,6 +9,8 @@ interface CombinedCalculationViewProps {
   evaluationMonth: string;
 }
 
+const isNonZero = (val: any) => val !== null && val !== undefined && val !== '' && Number(val) !== 0;
+
 export const CombinedCalculationView: React.FC<CombinedCalculationViewProps> = ({ sessionId, selectedKeys, evaluationMonth }) => {
   const [results, setResults] = useState<CombinedJobSummary[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -187,8 +189,11 @@ export const CombinedCalculationView: React.FC<CombinedCalculationViewProps> = (
                   const isOverride = (field: keyof ManualInputs) => manualValues[field] !== undefined;
                   
                   // Base input class
-                  const inputClass = (field: keyof ManualInputs) => 
-                    `w-20 px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-center transition-colors ${isOverride(field) ? 'border-amber-400 bg-amber-50 text-amber-900 font-bold' : 'border-gray-300 text-gray-700'}`;
+                  const inputClass = (field: keyof ManualInputs, val: any) => {
+                    if (isOverride(field)) return 'w-20 px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-center transition-colors border-amber-400 bg-amber-50 text-amber-900 font-bold';
+                    if (isNonZero(val)) return 'w-20 px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-center transition-colors border-amber-300 bg-amber-100/50 font-bold text-amber-900';
+                    return 'w-20 px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-center transition-colors border-gray-300 text-gray-700';
+                  };
 
                   return (
                     <React.Fragment key={res.job_number}>
@@ -201,7 +206,7 @@ export const CombinedCalculationView: React.FC<CombinedCalculationViewProps> = (
                             type="text" value={formatVal(effFd)}
                             onChange={(e) => handleManualInputChange(res.job_number, 'fd', e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') applyManualInputs(); }}
-                            placeholder="0" className={inputClass('fd')}
+                            placeholder="0" className={inputClass('fd', effFd)}
                           />
                         </td>
                         
@@ -211,7 +216,7 @@ export const CombinedCalculationView: React.FC<CombinedCalculationViewProps> = (
                             type="text" value={formatVal(effRo)}
                             onChange={(e) => handleManualInputChange(res.job_number, 'running_orders', e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') applyManualInputs(); }}
-                            placeholder="0" className={inputClass('running_orders')}
+                            placeholder="0" className={inputClass('running_orders', effRo)}
                           />
                         </td>
                         
@@ -221,7 +226,7 @@ export const CombinedCalculationView: React.FC<CombinedCalculationViewProps> = (
                             type="text" value={formatVal(effOcs)}
                             onChange={(e) => handleManualInputChange(res.job_number, 'ocs_done', e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') applyManualInputs(); }}
-                            placeholder="Pending" className={inputClass('ocs_done')}
+                            placeholder="Pending" className={inputClass('ocs_done', effOcs)}
                           />
                         </td>
                         
@@ -231,7 +236,7 @@ export const CombinedCalculationView: React.FC<CombinedCalculationViewProps> = (
                             type="text" value={formatVal(effExp)}
                             onChange={(e) => handleManualInputChange(res.job_number, 'expediting', e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') applyManualInputs(); }}
-                            placeholder="Blocked" className={inputClass('expediting')}
+                            placeholder="Blocked" className={inputClass('expediting', effExp)}
                           />
                           {isOverride('expediting') && <div className="hidden group-hover:block absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10">Manual Override</div>}
                         </td>
@@ -242,7 +247,7 @@ export const CombinedCalculationView: React.FC<CombinedCalculationViewProps> = (
                             type="text" value={formatVal(effInsp)}
                             onChange={(e) => handleManualInputChange(res.job_number, 'inspection', e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') applyManualInputs(); }}
-                            placeholder="Missing" className={inputClass('inspection')}
+                            placeholder="Missing" className={inputClass('inspection', effInsp)}
                           />
                           {isOverride('inspection') && <div className="hidden group-hover:block absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10">Manual Override</div>}
                         </td>
@@ -253,13 +258,13 @@ export const CombinedCalculationView: React.FC<CombinedCalculationViewProps> = (
                             type="text" value={formatVal(effOthers)}
                             onChange={(e) => handleManualInputChange(res.job_number, 'others', e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') applyManualInputs(); }}
-                            placeholder="Pending" className={inputClass('others')}
+                            placeholder="Pending" className={inputClass('others', effOthers)}
                           />
                           {isOverride('others') && <div className="hidden group-hover:block absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10">Manual Override</div>}
                         </td>
                         
                         {/* Calc Total (Read-Only) */}
-                        <td className="px-4 py-3 font-black text-gray-700 text-base">
+                        <td className={`px-4 py-3 font-black text-base ${isNonZero(localTotal) ? 'bg-amber-100/50 text-indigo-700' : 'text-gray-700'}`}>
                           {localTotal !== null ? localTotal : <span className="text-gray-400 italic text-sm">Blocked</span>}
                           {localTotal !== res.calculated_total && (
                             <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">Preview</span>

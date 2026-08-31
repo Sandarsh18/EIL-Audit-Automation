@@ -160,6 +160,9 @@ class CombinedEngineService:
             # Others is now strictly from Excel 2, or manual override
             others = m_input.others if m_input.others is not None else (float(e2.total_others_contribution) if e2 and e2.total_others_contribution is not None else 0.0)
             
+            # Meeting strictly manual, defaults to 0.0
+            meeting = m_input.meeting if m_input.meeting is not None else 0.0
+            
             # Inspection strictly from Excel 2, or manual override
             if e2 and e2.total_inspection_days is not None:
                 print(f"INTEGER CONVERSION: job={job}, field=e2_inspection, value={e2.total_inspection_days}, type={type(e2.total_inspection_days)}")
@@ -246,6 +249,12 @@ class CombinedEngineService:
                 evidence.append("Others: MISSING")
                 warnings.append("Others missing. Calculated Total blocked.")
                 
+            evidence.append(f"Meeting: {meeting}")
+            if m_input.meeting is not None:
+                evidence.append("  Source: Manual Override")
+            else:
+                evidence.append("  Source: Default (0.0)")
+                
             if calculated_total is not None:
                 evidence.append(f"Calculated Total: {calculated_total}")
                 status = "COMPLETE"
@@ -266,6 +275,7 @@ class CombinedEngineService:
                 native_expediting_used=expediting_is_native,
                 inspection=inspection,
                 others=others,
+                meeting=meeting,
                 calculated_total=calculated_total,
                 status=status,
                 warnings=warnings,

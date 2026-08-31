@@ -367,6 +367,8 @@ export const Dashboard: React.FC = () => {
               selectedKeys={selectedJobNumbers!} 
               onNext={() => setCurrentStep(6)}
               evaluationMonth={evaluationMonth}
+              customColumns={customColumns}
+              setCustomColumns={setCustomColumns}
             />
           </div>
         )}
@@ -377,7 +379,7 @@ export const Dashboard: React.FC = () => {
             <h2 className="text-xl font-bold text-gray-800 uppercase flex items-center">
               <Play className="w-5 h-5 mr-2 text-blue-600" /> Step 6: Generate Output
             </h2>
-            <OutputDashboard sessionId={session.session_id} selectedKeys={selectedJobNumbers!} evaluationMonth={evaluationMonth} customColumns={customColumns} setCustomColumns={setCustomColumns} />
+            <OutputDashboard sessionId={session.session_id} selectedKeys={selectedJobNumbers!} evaluationMonth={evaluationMonth} customColumns={customColumns} />
           </div>
         )}
 

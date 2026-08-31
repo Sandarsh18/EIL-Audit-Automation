@@ -121,7 +121,7 @@ def test_phase16_b269_acceptance():
         "Job No", "No. of Running orders", "Orders for FD f/up", "OCS done",
         "Exp.", "Inspn", "Others", "Total", "*Others/ Remarks",
         "Insp/ Project Coordinators", "MH available as on", 
-        "MH to be released for Aug'26", "Allotted", "8518 reqd"
+        "MH to be released for Aug'26", "Allotted", "8518 reqd", "Meeting"
     ]
     
     header_vals = []

@@ -10,10 +10,9 @@ interface OutputDashboardProps {
   selectedKeys: string[];
   evaluationMonth: string;
   customColumns: import('../types').CustomColumnData[];
-  setCustomColumns: (cols: import('../types').CustomColumnData[]) => void;
 }
 
-export const OutputDashboard: React.FC<OutputDashboardProps> = ({ sessionId, selectedKeys, evaluationMonth, customColumns, setCustomColumns }) => {
+export const OutputDashboard: React.FC<OutputDashboardProps> = ({ sessionId, selectedKeys, evaluationMonth, customColumns = [] }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -22,9 +21,7 @@ export const OutputDashboard: React.FC<OutputDashboardProps> = ({ sessionId, sel
   
   const [generating, setGenerating] = useState(false);
   
-  // Custom Columns State
-  
-  const [newColumnHeading, setNewColumnHeading] = useState('');
+
   
   const fetchPlan = useCallback(async () => {
     try {
@@ -86,23 +83,34 @@ export const OutputDashboard: React.FC<OutputDashboardProps> = ({ sessionId, sel
 
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mt-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 pb-4 border-b">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 pb-4 border-b gap-4">
         <h2 className="text-xl font-bold text-gray-800 uppercase tracking-wider flex items-center">
           <span className="bg-emerald-600 text-white w-8 h-8 rounded-full flex items-center justify-center mr-3 shadow-md"><FileSpreadsheet className="w-4 h-4" /></span> 
           OUTPUT GENERATION
         </h2>
         
         {plan && !result && (
-          <div className="flex gap-2 mt-4 md:mt-0">
-            <div className="bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 text-xs font-bold text-emerald-700 whitespace-nowrap">
-              Approved Jobs to Output: {plan.approved_jobs_included}
+          <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto mt-4 md:mt-0">
+            <div className="flex flex-wrap gap-2 justify-center md:justify-end">
+              <div className="bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 text-xs font-bold text-emerald-700 whitespace-nowrap">
+                Approved Jobs to Output: {plan.approved_jobs_included}
+              </div>
+              <div className="bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-700 whitespace-nowrap">
+                Fields to Write: {plan.cells_to_modify.length}
+              </div>
+              <div className="bg-red-50 px-3 py-1.5 rounded-lg border border-red-200 text-xs font-bold text-red-700 whitespace-nowrap">
+                Blocked Jobs: {plan.blocked_jobs.length}
+              </div>
             </div>
-            <div className="bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-700 whitespace-nowrap">
-              Fields to Write: {plan.cells_to_modify.length}
-            </div>
-            <div className="bg-red-50 px-3 py-1.5 rounded-lg border border-red-200 text-xs font-bold text-red-700 whitespace-nowrap">
-              Blocked Jobs: {plan.blocked_jobs.length}
-            </div>
+            
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2 rounded-lg shadow-sm transition-transform transform hover:scale-[1.02] flex items-center w-full md:w-auto justify-center flex-shrink-0"
+            >
+              {generating ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Download className="w-5 h-5 mr-2" />}
+              Generate Output Excel →
+            </button>
           </div>
         )}
       </div>
@@ -178,73 +186,18 @@ export const OutputDashboard: React.FC<OutputDashboardProps> = ({ sessionId, sel
             </div>
           </div>
           
-          <div className="mb-6 bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-            <h3 className="font-bold text-gray-800 mb-3">Custom Columns</h3>
-            <div className="flex gap-2 mb-4">
-              <input 
-                type="text"
-                placeholder="Column Heading"
-                value={newColumnHeading}
-                onChange={e => setNewColumnHeading(e.target.value)}
-                className="border border-gray-300 rounded px-3 py-2 text-sm flex-1"
-              />
-              <button 
-                onClick={() => {
-                  if (newColumnHeading.trim()) {
-                    setCustomColumns([...customColumns, { heading: newColumnHeading.trim(), data: {} }]);
-                    setNewColumnHeading('');
-                  }
-                }}
-                className="bg-gray-800 text-white px-4 py-2 rounded text-sm font-bold"
-              >
-                + Add Column
-              </button>
-            </div>
-            
-            {customColumns.length > 0 && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-gray-50 text-gray-600 font-bold uppercase text-xs">
-                    <tr>
-                      <th className="px-3 py-2 w-32 border">Job No.</th>
-                      {customColumns.map((c, i) => (
-                        <th key={i} className="px-3 py-2 border relative group">
-                          {c.heading}
-                          <button 
-                            onClick={() => setCustomColumns(customColumns.filter((_, idx) => idx !== i))}
-                            className="absolute right-2 text-red-500 hidden group-hover:block top-1/2 -translate-y-1/2"
-                          >
-                            ×
-                          </button>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[...new Set(plan.cells_to_modify.map(c => c.job_number))].map(job => (
-                      <tr key={job}>
-                        <td className="px-3 py-2 border font-bold bg-gray-50">{job}</td>
-                        {customColumns.map((col, i) => (
-                          <td key={i} className="px-0 py-0 border">
-                            <input 
-                              type="text" 
-                              className="w-full h-full px-3 py-2 outline-none focus:bg-blue-50"
-                              value={col.data[job] || ''}
-                              onChange={e => {
-                                const newCols = [...customColumns];
-                                newCols[i].data[job] = e.target.value;
-                                setCustomColumns(newCols);
-                              }}
-                            />
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {customColumns.length > 0 && (
+            <div className="mb-6 bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+              <h3 className="font-bold text-gray-800 mb-2">Custom Columns Included from Step 5</h3>
+              <div className="flex flex-wrap gap-2">
+                {customColumns.map((c, i) => (
+                  <span key={i} className="bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1 rounded-full text-xs font-bold">
+                    {c.heading}
+                  </span>
+                ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
           
           <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm mb-8">
             <table className="w-full text-left text-sm whitespace-nowrap">

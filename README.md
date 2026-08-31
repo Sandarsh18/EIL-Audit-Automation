@@ -1,154 +1,236 @@
-# EIL Audit Automation
+<div align="center">
 
-The EIL Excel Inspection & Audit Processing application is an automated, end-to-end data pipeline designed to consolidate, analyze, and generate master auditing reports from multiple source workbooks.
+# 🚀 EIL Audit Automation
 
-## Architecture & Technology Stack
-- **Frontend**: React, TypeScript, Vite, Tailwind CSS (Desktop-first interactive UI).
-- **Backend**: Python, FastAPI, Pandas, OpenPyXL (High-performance calculation engine).
-- **Storage**: Local filesystem storage (`storage/`) with Docker volume mapping for persistent immutable workbooks and generated outputs.
-- **Session State**: UUID-based session tracking for secure, isolated multi-step workflows.
+**Intelligent Excel Inspection & Audit Processing**
 
----
+*Automate → Analyze → Review → Approve → Generate*
 
-## The Workflow (Step-by-Step)
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB.svg?style=for-the-badge&logo=python&logoColor=white)](#)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.2-3178C6.svg?style=for-the-badge&logo=typescript&logoColor=white)](#)
+[![React](https://img.shields.io/badge/React-18-61DAFB.svg?style=for-the-badge&logo=react&logoColor=black)](#)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688.svg?style=for-the-badge&logo=fastapi&logoColor=white)](#)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=for-the-badge&logo=docker&logoColor=white)](#)
 
-The application utilizes a guided 6-step workflow to safely process inputs and generate outputs.
+[![Pandas](https://img.shields.io/badge/Pandas-Data%20Analysis-150458.svg?style=flat-square&logo=pandas&logoColor=white)](#)
+[![OpenPyXL](https://img.shields.io/badge/OpenPyXL-Excel%20Engine-brightgreen.svg?style=flat-square)](#)
+[![Playwright](https://img.shields.io/badge/Tested_via-Playwright-2EAD33.svg?style=flat-square&logo=playwright&logoColor=white)](#)
+[![Version](https://img.shields.io/badge/Version-v1.3.0-blue.svg?style=flat-square)](#)
 
-### Step 1: Upload (Source Workbooks)
-The system requires three specific Excel workbooks to function:
-- **Excel 1 (Consolidated Report)**: Contains the running orders, balances, and OCS completion dates.
-- **Excel 2 (Inspection Call Log)**: Contains the raw inspection dates, working days, QAP values, and received dates.
-- **Excel 3 (Master Template)**: The master Job Number list and the template structure used for the final output generation.
-
-*All uploaded files are stored immutably on the backend.*
-
-### Step 2: Inspect & Map Columns
-Because column headers can vary between source files, this step allows you to map internal logical fields to the actual headers found in your uploaded workbooks. 
-- You can dynamically inspect the available sheets and data within the browser.
-- Select the precise target sheet and map required fields (e.g., Job Number, Balance Quantity, OCS Date, Inspection From/Upto).
-
-### Step 3: Select Jobs
-The backend reads **Excel 3** and extracts all unique Job Numbers based on your mapping. You can select specific jobs to analyze or process the entire batch.
-
-### Step 4: Rule Analysis
-This is where the calculation engine runs. 
-- You must select an **Evaluation Month** (e.g., August 2026). 
-- The engine processes the records in Excel 1 and Excel 2 based on strict business rules (see [Calculation Rules](#calculation-rules) below).
-- Diagnostic panels display exact lineage, allowing you to trace exactly how a calculation was derived, or why a record was excluded.
-
-### Step 5: Review & Approve
-The Review Dashboard presents the calculated values (FD, Running Orders, OCS Done, Expediting, Inspection, Others, and Total). 
-- **Non-zero highlighting**: Important numeric values > 0 are visually highlighted.
-- **Manual Overrides**: You can manually edit any calculated value if human intervention is required.
-- **Approval**: You must formally "Approve" a row. Only approved rows are passed to the final output. You can "Undo" approvals at any time before generating the output.
-
-### Step 6: Generate Output
-The backend takes your original **Excel 3 Master Template** and generates a pristine, customized `CONSOLIDATED_Manhour_Automated.xlsx` workbook:
-- It strips out unused sheets.
-- It dynamically updates string dates in the template (e.g., `for Mar'26` becomes `for Aug'26` based on the Evaluation Month).
-- It injects only the **Approved** job rows, preserving the native Excel styling (fonts, borders, colors) of the template.
-- It dynamically appends a "Leave" row and a "Total" row.
-- It automatically inserts native `=SUM()` formulas into the Total row for dynamic spreadsheet behavior.
-- **Custom Columns**: You can optionally define and append custom textual columns to the output.
+</div>
 
 ---
 
-## Calculation Rules & Excel Logic
+> 🚀 **AUTOMATE THE BORING WORK**
+>
+> Stop copy-pasting between spreadsheets. Upload your source Excel workbooks and let the application automatically map, analyze, and generate a pristine, formula-ready audit report.
 
-The core value of the platform is the deterministic extraction and aggregation of data from the source workbooks.
+> 📊 **EXCEL INTELLIGENCE**
+>
+> Native `xlsx` parsing using Pandas and OpenPyXL. The system dynamically reads custom column headers, applies business rules, and injects data without destroying your original template styles.
 
-### Excel 1 (Consolidated Report)
-Excel 1 is evaluated on a strict 6-month historical window (5 months prior to the Evaluation Month + the Evaluation Month itself).
-- **FD**: Counted if `Balance Quantity == 0` AND `OCS Date` is strictly blank.
-- **OCS Done**: Counted if `Balance Quantity == 0` AND `OCS Date` is present and falls within the 6-month window.
-- **Running Orders**: Counted if `Balance Quantity != 0`.
-
-*Records with an OCS Date falling entirely outside the 6-month evaluation window are EXCLUDED from aggregation.*
-
-### Excel 2 (Inspection Call Log)
-Excel 2 calculations rely on dynamic mapping (typically mapped to columns like L and M for Inspection Dates).
-- **Inspection (Days)**: Calculated by looking at the `Inspection From` and `Inspection Upto` dates. 
-  - Formula: `(Upto Date - From Date) + 1` day. 
-  - *Critical Constraint*: The dates must occur *strictly* within the chosen Evaluation Month. Dates in other months are excluded.
-- **Others**: Looks at the `Date Received`. If the received date is within the 6-month window, it extracts the value from `QAP Appl.`. If `QAP Appl.` is blank, it falls back to the `Working Days` column.
-
-### Combined Total Formula
-The final calculated output combines the derivations:
-1. **Expediting** = `(Running Orders + OCS Done) * 2`
-2. **Total** = `Expediting + Inspection (from Excel 2) + Others (from Excel 2)`
+> 🛡️ **SAFE & AUDITABLE**
+>
+> Every calculation provides a complete lineage trace. You have full manual override capabilities and an explicit approval workflow before any output is generated.
 
 ---
 
-## Prerequisites
-To run the application, you only need the following installed on your machine:
-- **Docker**
-- **Docker Compose**
+## 🏛️ System Architecture
 
-*Note: The production compose file uses prebuilt Docker Hub images. Therefore, you do not need Python, Node.js, npm, or a local virtual environment to run the application.*
+The application is built on a decoupled, containerized architecture ensuring maximum performance and portability.
 
-## Production Deployment
+```mermaid
+flowchart LR
+    U["👤 User"]
 
-The intended workflow for a new user to start the application is:
+    subgraph Frontend ["🖥️ React + Vite UI"]
+        UI["React Dashboard<br/>(Tailwind CSS)"]
+        State["Session State"]
+    end
 
-1. Clone or download this repository.
-2. Navigate to the project root directory.
-3. Create the required storage directory on your host machine.
-4. Pull the latest images and start the containers.
+    subgraph Backend ["⚡ FastAPI Backend"]
+        API["REST API"]
+        EX["📊 Excel Engine<br/>(Pandas & OpenPyXL)"]
+    end
+
+    ST["💾 Persistent Storage<br/>(Docker Volume)"]
+    OUT["📤 Generated Excel<br/>Output"]
+
+    U <--> UI
+    UI <--> API
+    API <--> EX
+    EX <--> ST
+    EX --> OUT
+    OUT -.-> U
+```
+
+---
+
+## 🔄 The 6-Step Workflow Engine
+
+The EIL Audit engine enforces a strict, guided workflow to ensure data integrity at every stage.
+
+| Step | Action | Description |
+| :---: | :--- | :--- |
+| **1** | 📤 **Upload** | Upload Excel 1 (Consolidated), Excel 2 (Inspection Log), and Excel 3 (Master Template) into an isolated session. |
+| **2** | 🗺️ **Map** | Visually map logical business fields to the actual spreadsheet columns found in your uploaded files. |
+| **3** | 🔍 **Jobs** | The engine automatically extracts the Master Job List from Excel 3. Select which jobs to process. |
+| **4** | 🧮 **Analyze** | Select an **Evaluation Month**. The engine crunches historical data and applies complex date-window logic. |
+| **5** | ✅ **Review** | Interactive dashboard with **non-zero highlighting**. Apply manual overrides, view calculation lineage, and Approve rows. |
+| **6** | 📥 **Output** | Generate a perfectly styled output workbook. Unused rows are stripped, styles are preserved, and `=SUM()` formulas are injected. |
+
+<details>
+<summary><b>🎬 View Workflow Sequence Diagram</b></summary>
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as React Frontend
+    participant API as FastAPI Backend
+    participant Storage as File Storage
+
+    User->>UI: Upload Workbooks
+    UI->>API: POST /api/sessions/{id}/files
+    API->>Storage: Save Immutable Files
+    UI->>API: GET Sheet Metadata
+    API-->>UI: Column Headers
+    User->>UI: Map Columns
+    UI->>API: POST /sessions/{id}/mapping
+    User->>UI: Select Jobs & Eval Month
+    UI->>API: POST /calculations/combined
+    API-->>UI: Job Summaries & Lineage
+    User->>UI: Approve / Override Jobs
+    UI->>API: POST /output/generate
+    API->>Storage: Duplicate Template & Inject Data
+    API-->>UI: Download Link
+```
+</details>
+
+---
+
+## 🧠 Technical Deep Dive: Excel Processing
+
+The system doesn't just copy data; it understands it. Here is how the business logic interprets your workbooks:
+
+<details open>
+<summary><b>📊 Excel 1: Consolidated Report Logic</b></summary>
+
+Excel 1 provides historical running order data. It is evaluated on a **strict 6-month historical window** (5 months prior to the Evaluation Month + the Evaluation Month itself).
+
+*   **FD**: Counted if `Balance Quantity == 0` AND `OCS Date` is strictly blank.
+*   **OCS Done**: Counted if `Balance Quantity == 0` AND `OCS Date` is present and falls within the 6-month window.
+*   **Running Orders**: Counted if `Balance Quantity != 0`.
+
+*(Records with an OCS Date falling entirely outside the 6-month window are excluded.)*
+</details>
+
+<details open>
+<summary><b>📋 Excel 2: Inspection Log Logic</b></summary>
+
+Excel 2 provides inspection and received dates.
+
+*   **Inspection (Days)**: `(Inspection Upto Date - Inspection From Date) + 1`. <br/>*Constraint*: Both dates must occur strictly within the chosen Evaluation Month.
+*   **Others**: Looks at the `Date Received`. If the received date is within the 6-month window, it extracts the value from `QAP Appl.`. If `QAP Appl.` is blank, it falls back to the `Working Days` column.
+</details>
+
+<details open>
+<summary><b>🧮 Final Total Calculation</b></summary>
+
+The combined output engine calculates the final metrics to be injected into Excel 3:
+
+1.  **Expediting** = `(Running Orders + OCS Done) * 2`
+2.  **Total** = `Expediting + Inspection (from Excel 2) + Others (from Excel 2)`
+</details>
+
+---
+
+## 🐳 Production Deployment (Docker)
+
+The application is completely containerized. You do **not** need Python, Node, or any local dependencies to run the production version.
+
+### 1. Setup & Start
+Clone the repository, create the storage volume, and launch:
 
 ```bash
-# 1. Create the persistent storage directory
+git clone https://github.com/Sandarsh18/eil.git
+cd eil
+
+# Create persistent storage directory
 mkdir -p storage
 
-# 2. Pull the prebuilt images from Docker Hub
+# Pull the prebuilt v1.3.0 images & start
 docker compose -f docker-compose.prod.yml pull
-
-# 3. Start the application in the background
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-### Current Image Versions
-The `docker-compose.prod.yml` uses the following Docker Hub images:
-- `sandarsh/eil-backend:v1.2.0`
-- `sandarsh/eil-frontend:v1.2.0`
+### 2. Access the Application
+*   **Frontend UI**: [http://localhost:5173](http://localhost:5173)
+*   **Backend API Docs (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-### Application URLs
-Once the containers are running, you can access the application at:
-- **Frontend**: http://localhost:5173
-- **Backend (API Docs)**: http://localhost:8000/docs
-
-### Persistent Storage
-The `storage/` directory is mounted from the host machine into the backend container. This ensures that any uploaded Excel files and generated audit outputs persist across container recreation and restarts.
-
-### Useful Commands
-Check the status of the running containers:
+### 3. Useful Commands
 ```bash
+# View running containers
 docker compose -f docker-compose.prod.yml ps
-```
-View the logs of the application:
-```bash
-docker compose -f docker-compose.prod.yml logs
-```
-Stop the application:
-```bash
+
+# View backend/frontend logs
+docker compose -f docker-compose.prod.yml logs -f
+
+# Shut down the application securely
 docker compose -f docker-compose.prod.yml down
 ```
 
 ---
 
-## Local Development & Source Building
+## 🛠️ Developer Documentation
 
-If you wish to develop or modify the source code, you can start the entire stack building directly from the source:
-```bash
-docker compose up -d --build
+<details>
+<summary><b>📁 Project Structure</b></summary>
+
+```text
+eil/
+├── backend/
+│   ├── app/
+│   │   ├── api/          # FastAPI Route Endpoints
+│   │   ├── schemas/      # Pydantic Data Models (I/O)
+│   │   ├── services/     # Core Business Logic & Calculation Engines
+│   │   └── utils/        # Date & Numeric Parsers
+│   ├── tests/            # Pytest Unit & Integration Tests
+│   └── Dockerfile
+├── frontend/
+│   ├── e2e/              # Playwright End-to-End Tests
+│   ├── src/
+│   │   ├── components/   # React UI Components
+│   │   ├── pages/        # Dashboard Views
+│   │   └── services/     # API Client configuration
+│   └── Dockerfile
+├── storage/              # Immutable file storage (Git Ignored)
+├── docker-compose.yml    # Development (Source Build) Compose
+└── docker-compose.prod.yml # Production (Docker Hub) Compose
 ```
+</details>
 
-**Testing:**
-To run the automated Playwright E2E UI workflow tests (Requires backend to be running):
-```bash
-./run_e2e.sh
-```
+<details>
+<summary><b>🔌 API Endpoints Summary</b></summary>
 
-To run the backend Python unit and integration tests (validating the core calculation engine):
+The FastAPI backend provides a comprehensive REST API. Full documentation is available at `/docs` when running.
+
+| Route | Method | Purpose |
+| :--- | :--- | :--- |
+| `/api/sessions` | `POST` | Create a new isolated processing session |
+| `/api/sessions/{id}/files/{type}` | `POST` | Upload Excel 1, 2, or 3 |
+| `/api/sessions/{id}/mapping` | `POST` | Submit column header mappings |
+| `/api/sessions/{id}/calculations/combined`| `POST` | Execute the rules engine |
+| `/api/sessions/{id}/jobs/{job}/approve` | `POST` | Approve a job for output |
+| `/api/sessions/{id}/output/generate` | `POST` | Generate the final `.xlsx` file |
+</details>
+
+<details>
+<summary><b>🧪 Testing Suite</b></summary>
+
+The project maintains rigorous testing standards to ensure calculation accuracy.
+
+**1. Backend Unit & Integration Tests (Pytest)**
+Executes 60+ tests verifying date extraction, OCS window logic, and Excel native formula preservation.
 ```bash
 cd backend
 python -m venv venv
@@ -156,3 +238,23 @@ source venv/bin/activate
 pip install -r requirements.txt
 pytest tests/
 ```
+
+**2. Frontend E2E Tests (Playwright)**
+Simulates a real user clicking through the entire 6-step workflow in a headless Chromium browser.
+```bash
+./run_e2e.sh
+```
+</details>
+
+---
+
+## ⚠️ Limitations & Troubleshooting
+
+*   **Excel Memory**: The application processes Excel files in memory using Pandas. Extremely large files (>50MB) may require tuning the Docker memory limits.
+*   **Column Mapping**: If the engine fails to detect Job Numbers, ensure that you mapped the exact header string in Step 2. Hidden characters in Excel headers can cause mismatches.
+*   **Port Conflicts**: If the backend fails to start, ensure port `8000` is free. If the frontend fails, ensure port `5173` is free. Use `docker ps` to check for ghost containers.
+
+<div align="center">
+<br/>
+<sub>Built with ❤️ for automated data integrity.</sub>
+</div>

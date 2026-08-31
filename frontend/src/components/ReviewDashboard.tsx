@@ -8,26 +8,29 @@ interface ReviewDashboardProps {
   selectedKeys: string[];
   evaluationMonth: string;
   onNext: () => void;
+  customColumns?: import('../types').CustomColumnData[];
+  setCustomColumns?: (cols: import('../types').CustomColumnData[]) => void;
 }
 
 type FilterStatus = 'ALL' | 'DRAFT' | 'WARNING' | 'BLOCKED' | 'APPROVED' | 'DELETED';
 
 const isNonZero = (val: any) => val !== null && val !== undefined && val !== '' && Number(val) !== 0;
 
-export const ReviewDashboard: React.FC<ReviewDashboardProps> = ({ sessionId, selectedKeys, evaluationMonth, onNext }) => {
+export const ReviewDashboard: React.FC<ReviewDashboardProps> = ({ sessionId, selectedKeys, evaluationMonth, onNext, customColumns = [], setCustomColumns = () => {} }) => {
   const [jobs, setJobs] = useState<JobReviewResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   const [filter, setFilter] = useState<FilterStatus>('ALL');
   const [search, setSearch] = useState('');
+  const [newColumnHeading, setNewColumnHeading] = useState('');
   
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
   
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   
   // Pending override state for the currently expanded job
-  const [pendingOverrides, setPendingOverrides] = useState<{ field: 'ocs_done' | 'others' | 'expediting', value: string, reason: string } | null>(null);
+  const [pendingOverrides, setPendingOverrides] = useState<{ field: 'ocs_done' | 'others' | 'expediting' | 'meeting', value: string, reason: string } | null>(null);
 
   const fetchReviews = async () => {
     try {
@@ -269,6 +272,7 @@ export const ReviewDashboard: React.FC<ReviewDashboardProps> = ({ sessionId, sel
                 <th className="px-4 py-3">Expediting</th>
                 <th className="px-4 py-3">Inspection</th>
                 <th className="px-4 py-3">Others</th>
+                <th className="px-4 py-3">Meeting</th>
                 <th className="px-4 py-3 text-indigo-700">Total</th>
                 <th className="px-4 py-3 text-center">Status</th>
                 <th className="px-4 py-3 text-right">Action</th>
@@ -276,7 +280,7 @@ export const ReviewDashboard: React.FC<ReviewDashboardProps> = ({ sessionId, sel
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filteredJobs.map(res => {
-                const hasHighlight = isNonZero(res.fd) || isNonZero(res.running_orders) || isNonZero(res.ocs_done) || isNonZero(res.expediting) || isNonZero(res.inspection) || isNonZero(res.others) || isNonZero(res.calculated_total);
+                const hasHighlight = isNonZero(res.fd) || isNonZero(res.running_orders) || isNonZero(res.ocs_done) || isNonZero(res.expediting) || isNonZero(res.inspection) || isNonZero(res.others) || isNonZero(res.meeting) || isNonZero(res.calculated_total);
                 
                 return (
                 <tr key={res.job_number} data-test-id={`job-row-${res.job_number.toLowerCase()}`} className={`transition-colors ${expandedJob === res.job_number ? 'bg-indigo-50/50' : res.status === 'DELETED' ? 'bg-red-50 text-red-900 opacity-75' : res.status === 'APPROVED' ? 'bg-green-50/30' : hasHighlight ? 'bg-amber-50/50 hover:bg-amber-100/50' : 'hover:bg-gray-50'}`}>
@@ -292,6 +296,10 @@ export const ReviewDashboard: React.FC<ReviewDashboardProps> = ({ sessionId, sel
                   <td className={`px-4 py-3 font-medium ${isNonZero(res.others) ? 'bg-amber-100/50 font-semibold text-amber-900' : ''}`}>
                     {res.others !== null ? res.others : <span className="text-gray-400">—</span>}
                     {res.overrides['others']?.active && <span className="ml-2 text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full font-bold">OVR</span>}
+                  </td>
+                  <td className={`px-4 py-3 font-medium ${isNonZero(res.meeting) ? 'bg-amber-100/50 font-semibold text-amber-900' : ''}`}>
+                    {res.meeting !== null ? res.meeting : <span className="text-gray-400">—</span>}
+                    {res.overrides['meeting']?.active && <span className="ml-2 text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full font-bold">OVR</span>}
                   </td>
                   <td className={`px-4 py-3 font-black text-indigo-700 text-base ${isNonZero(res.calculated_total) ? 'bg-amber-100/50' : ''}`}>{res.calculated_total !== null ? res.calculated_total : <span className="text-gray-400 italic text-sm">Blocked</span>}</td>
                   <td className="px-4 py-3 text-center">
@@ -611,6 +619,53 @@ export const ReviewDashboard: React.FC<ReviewDashboardProps> = ({ sessionId, sel
                     </div>
                   )}
                 </div>
+
+                {/* Meeting Edit */}
+                <div className="bg-white p-4 rounded-lg border shadow-sm">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-bold text-gray-700 text-sm">Meeting</span>
+                    {job.overrides['meeting'] ? (
+                      <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Overridden</span>
+                    ) : (
+                      <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Source</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500 mb-3">
+                    Source value: <span className="font-bold text-gray-800">{job.overrides['meeting']?.source_value ?? (job.meeting !== null ? job.meeting : 'Missing')}</span>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <input 
+                      type="text"
+                      className="border border-gray-300 rounded px-2 py-1 text-sm w-20 focus:ring-2 focus:ring-indigo-500"
+                      value={pendingOverrides?.field === 'meeting' ? pendingOverrides.value : (job.meeting !== null ? job.meeting : '')}
+                      onChange={e => setPendingOverrides({ field: 'meeting', value: e.target.value, reason: pendingOverrides?.field === 'meeting' ? pendingOverrides.reason : '' })}
+                    />
+                    {pendingOverrides?.field === 'meeting' && (
+                      <>
+                        <input 
+                          type="text"
+                          placeholder="Reason for change..."
+                          className="border border-gray-300 rounded px-2 py-1 text-sm flex-1 focus:ring-2 focus:ring-indigo-500"
+                          value={pendingOverrides.reason}
+                          onChange={e => setPendingOverrides({ ...pendingOverrides, reason: e.target.value })}
+                        />
+                        <button 
+                          onClick={() => handleApplyOverride(job.job_number)}
+                          className="bg-indigo-600 text-white rounded px-3 py-1 text-xs font-bold flex items-center hover:bg-indigo-700"
+                        >
+                          <Save className="w-3 h-3 mr-1" /> Save
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  
+                  {job.overrides['meeting']?.reason && (
+                    <div className="mt-2 text-[11px] text-gray-500 bg-gray-50 p-2 rounded">
+                      <span className="font-bold">Reason:</span> {job.overrides['meeting'].reason}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* CALCULATED RESULTS */}
@@ -646,7 +701,77 @@ export const ReviewDashboard: React.FC<ReviewDashboardProps> = ({ sessionId, sel
         );
       })()}
 
-      <div className="mt-8 pt-6 border-t border-gray-200 flex justify-end">
+      <div className="mt-8 mb-6 bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h3 className="text-lg font-bold text-gray-800 mb-1 uppercase tracking-wider">Custom Columns</h3>
+        <p className="text-sm text-gray-500 mb-4">Add additional columns that will be injected into the final generated output for these jobs.</p>
+        <div className="flex gap-2 mb-4">
+          <input 
+            type="text"
+            placeholder="Column Heading"
+            value={newColumnHeading}
+            onChange={e => setNewColumnHeading(e.target.value)}
+            className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          />
+          <button 
+            onClick={() => {
+              if (newColumnHeading.trim()) {
+                setCustomColumns([...customColumns, { heading: newColumnHeading.trim(), data: {} }]);
+                setNewColumnHeading('');
+              }
+            }}
+            className="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded text-sm font-bold shadow-sm transition-colors"
+          >
+            + Add Column
+          </button>
+        </div>
+        
+        {customColumns.length > 0 && (
+          <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-gray-50 text-gray-600 font-bold uppercase text-xs">
+                <tr>
+                  <th className="px-4 py-3 w-32 border-b border-r">Job No.</th>
+                  {customColumns.map((c, i) => (
+                    <th key={i} className="px-4 py-3 border-b border-r relative group bg-indigo-50/50">
+                      {c.heading}
+                      <button 
+                        onClick={() => setCustomColumns(customColumns.filter((_, idx) => idx !== i))}
+                        className="absolute right-2 text-red-500 hidden group-hover:block top-1/2 -translate-y-1/2 bg-white rounded-full px-1.5 shadow"
+                        title="Remove Column"
+                      >
+                        ×
+                      </button>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {jobs.map(job => (
+                  <tr key={job.job_number} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 border-r font-bold text-gray-700 bg-gray-50">{job.job_number}</td>
+                    {customColumns.map((col, i) => (
+                      <td key={i} className="px-0 py-0 border-r">
+                        <input 
+                          type="text" 
+                          className="w-full h-full px-4 py-2 outline-none focus:bg-indigo-50 transition-colors"
+                          value={col.data[job.job_number] || ''}
+                          onChange={e => {
+                            const newCols = [...customColumns];
+                            newCols[i].data[job.job_number] = e.target.value;
+                            setCustomColumns(newCols);
+                          }}
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-4 pt-6 border-t border-gray-200 flex justify-end">
         <button
           onClick={onNext}
           disabled={counts.approved === 0}

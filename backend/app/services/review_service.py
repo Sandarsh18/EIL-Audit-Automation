@@ -55,6 +55,8 @@ class ReviewService:
                 mi.others = ovr["others"].override_value
             if "expediting" in ovr and ovr["expediting"].active:
                 mi.expediting = ovr["expediting"].override_value
+            if "meeting" in ovr and ovr["meeting"].active:
+                mi.meeting = ovr["meeting"].override_value
             manual_inputs[job] = mi
             
         # 3. Fetch effective combined calculations WITH overrides
@@ -99,6 +101,7 @@ class ReviewService:
                 native_expediting_used=eff.native_expediting_used,
                 inspection=eff.inspection,
                 others=eff.others,
+                meeting=eff.meeting,
                 calculated_total=eff.calculated_total,
                 status=final_status,
                 warnings=eff.warnings,

@@ -10,7 +10,7 @@ class ManualOverride(BaseModel):
     active: bool = True
 
 class OverrideRequest(BaseModel):
-    field: Literal["ocs_done", "others", "expediting"]
+    field: Literal["ocs_done", "others", "expediting", "meeting"]
     value: Optional[float]
     reason: Optional[str] = None
 
@@ -26,6 +26,7 @@ class JobReviewResult(BaseModel):
     native_expediting_used: bool = False
     inspection: Optional[int]
     others: Optional[float]
+    meeting: Optional[float] = None
     calculated_total: Optional[float]
     status: Literal["DRAFT", "WARNING", "BLOCKED", "APPROVED", "DELETED"]
     warnings: List[str]
