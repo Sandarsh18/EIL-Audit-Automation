@@ -24,8 +24,8 @@ def test_inspection_multiples():
         return [
             Mock(job_number="J0", valid_records=0, total_inspection_days=0, evidence=[], total_others_contribution=0.0),
             Mock(job_number="J1", valid_records=1, total_inspection_days=1, evidence=[], total_others_contribution=0.0),
-            Mock(job_number="J2", valid_records=1, total_inspection_days=2, evidence=[], total_others_contribution=0.0),
-            Mock(job_number="J5", valid_records=1, total_inspection_days=5, evidence=[], total_others_contribution=0.0),
+            Mock(job_number="J2", valid_records=2, total_inspection_days=2, evidence=[], total_others_contribution=0.0),
+            Mock(job_number="J5", valid_records=5, total_inspection_days=5, evidence=[], total_others_contribution=0.0),
             Mock(job_number="JM", valid_records=0, total_inspection_days=None, evidence=[], total_others_contribution=0.0),
         ]
 

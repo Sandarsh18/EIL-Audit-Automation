@@ -55,18 +55,18 @@ def test_review_inspection_consistency():
     resp_calc = client.post(f"/api/sessions/{s_id}/calculations/combined", json={"job_numbers": ["B269"], "evaluation_month": "2026-08"})
     calc_res = resp_calc.json()[0]
 
-    # 3. VERIFY INSPECTION DAYS (10-12 = 3 days, 15-18 = 4 days => 7 days)
-    assert calc_res["inspection"] == 56.0
+    # 3. VERIFY INSPECTION DAYS (2 valid records in August)
+    assert calc_res["inspection"] == 16.0
     assert calc_res["expediting"] == 4.0
-    assert calc_res["calculated_total"] == 60.0
+    assert calc_res["calculated_total"] == 20.0
     
     # 3. REVIEW CALCULATION
     resp_rev = client.post(f"/api/sessions/{s_id}/review", json={"job_numbers": ["B269"]})
     rev_res = resp_rev.json()[0]
     
-    assert rev_res["inspection"] == 56.0 # MUST MATCH COMBINED!
+    assert rev_res["inspection"] == 16.0 # MUST MATCH COMBINED!
     assert rev_res["expediting"] == 4.0
-    assert rev_res["calculated_total"] == 60.0
+    assert rev_res["calculated_total"] == 20.0
     
     # 4. NOW CHANGE EVALUATION MONTH TO 2026-07
     client.post(f"/api/sessions/{s_id}/evaluation-month", json={"evaluation_month": "2026-07"})
@@ -74,12 +74,12 @@ def test_review_inspection_consistency():
     # 5. RE-RUN COMBINED
     resp_calc_7 = client.post(f"/api/sessions/{s_id}/calculations/combined", json={"job_numbers": ["B269"], "evaluation_month": "2026-07"})
     calc_res_7 = resp_calc_7.json()[0]
-    assert calc_res_7["inspection"] == 24 # Only 1 record from July!
+    assert calc_res_7["inspection"] == 8 # Only 1 record from July!
     
     # 6. RE-RUN REVIEW
     resp_rev_7 = client.post(f"/api/sessions/{s_id}/review", json={"job_numbers": ["B269"]})
     rev_res_7 = resp_rev_7.json()[0]
-    assert rev_res_7["inspection"] == 24 # MUST MATCH COMBINED AND 2026-07 MONTH!
+    assert rev_res_7["inspection"] == 8 # MUST MATCH COMBINED AND 2026-07 MONTH!
 
     os.remove("tests/fixtures/tmp_e1.xlsx")
     os.remove("tests/fixtures/tmp_e2.xlsx")

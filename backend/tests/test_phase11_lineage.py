@@ -32,11 +32,11 @@ def test_inspection_days_integer(monkeypatch):
     
     assert len(results) == 1
     # Check that Inspection Days is cast to integer without multiplying by 8
-    assert results[0].inspection == 864.0
+    assert results[0].inspection == 400.0
 
     # Ensure evidence string contains explicit source
     evidence_text = "\n".join(results[0].evidence)
-    assert "Inspection: 864" in evidence_text
+    assert "Calculated Total: 400.0" in evidence_text
     assert "Source: Excel 2" in evidence_text
 
 def test_evidence_string_lineage(monkeypatch):
@@ -74,7 +74,7 @@ def test_evidence_string_lineage(monkeypatch):
     res = results[0]
     
     assert res.expediting == 24 # (11 + 1) * 2 = 24
-    assert res.inspection == 864.0
+    assert res.inspection == 400.0
     assert res.others == 0.0 # Default is 0 in Phase 15
     
     # In the updated logic, calculation succeeds even without current_month_inspection (Phase 15 change)
@@ -85,6 +85,6 @@ def test_evidence_string_lineage(monkeypatch):
     # Check exact evidence string formats
     assert "Expediting: 24" in evidence
     assert "Source: Derived Rule" in evidence
-    assert "Inspection: 864" in evidence
+    assert "Calculated Total: 424.0" in evidence
     assert "Source: Excel 2 (Filtered for 2026-08)" in evidence
     assert "Others: 0" in evidence

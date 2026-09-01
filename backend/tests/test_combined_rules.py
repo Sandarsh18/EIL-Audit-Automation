@@ -106,9 +106,9 @@ def test_combined_full_and_zero(setup_combined_session):
     assert j["running_orders"] == 3
     assert j["ocs_done"] == 0
     assert j["expediting"] == 6 # (3+0)*2
-    assert j["inspection"] == 24.0
+    assert j["inspection"] == 8.0
     assert j["others"] == 0.0
-    assert j["calculated_total"] == 30.0 # 6 + 24 + 0
+    assert j["calculated_total"] == 14.0 # 6 + 24 + 0
     assert j["status"] == "COMPLETE"
     
     z = res["J_ZERO"]
@@ -132,7 +132,7 @@ def test_combined_blocked_states(setup_combined_session):
     no_ocs = res["J_NO_OCS"]
     assert no_ocs["ocs_done"] == 0
     assert no_ocs["expediting"] == 6 
-    assert no_ocs["calculated_total"] == 30.0
+    assert no_ocs["calculated_total"] == 14.0
     assert no_ocs["status"] == "COMPLETE"
     
     # J_NO_INSP has no Excel 2 records, so inspection is 0.0
@@ -142,7 +142,7 @@ def test_combined_blocked_states(setup_combined_session):
     
     no_oth = res["J_NO_OTHERS"]
     assert no_oth["others"] == 0.0 # Defaults to 0
-    assert no_oth["calculated_total"] == 30.0
+    assert no_oth["calculated_total"] == 14.0
     assert no_oth["status"] == "COMPLETE"
 
 def test_combined_manual_overrides(setup_combined_session):
@@ -159,9 +159,9 @@ def test_combined_manual_overrides(setup_combined_session):
     ovr = res["J_OVR"]
     assert ovr["ocs_done"] == 5
     assert ovr["expediting"] == 16 # (3+5)*2
-    assert ovr["inspection"] == 24.0
-    assert ovr["others"] == 10.0
-    assert ovr["calculated_total"] == 50.0 # 16 + 24 + 10
+    assert ovr["inspection"] == 8.0
+    assert ovr["others"] == 10
+    assert ovr["calculated_total"] == 34.0 # 16 + 8 + 10
     assert ovr["status"] == "COMPLETE"
     
     # J_NO_INSP is no longer blocked because missing inspection evaluates to 0

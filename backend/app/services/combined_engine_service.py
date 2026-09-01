@@ -164,9 +164,9 @@ class CombinedEngineService:
             meeting = m_input.meeting if m_input.meeting is not None else 0.0
             
             # Inspection strictly from Excel 2, or manual override
-            if e2 and e2.total_inspection_days is not None:
-                print(f"INTEGER CONVERSION: job={job}, field=e2_inspection, value={e2.total_inspection_days}, type={type(e2.total_inspection_days)}")
-            base_inspection = int(e2.total_inspection_days) if e2 and e2.total_inspection_days is not None else 0
+            if e2 and e2.valid_records is not None:
+                print(f"INTEGER CONVERSION: job={job}, field=e2_inspection_count, value={e2.valid_records}, type={type(e2.valid_records)}")
+            base_inspection = int(e2.valid_records) if e2 and e2.valid_records is not None else 0
             inspection = m_input.inspection if m_input.inspection is not None else (base_inspection * 8)
             
             # Derived logic
