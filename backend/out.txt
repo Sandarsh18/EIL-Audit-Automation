@@ -1,0 +1,97 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0
+rootdir: /home/1RV24MC093_SANDARSH_J_N/projects/eil1/backend
+plugins: langsmith-0.8.7, anyio-4.13.0
+collected 3 items
+
+tests/test_phase11_lineage.py .FF                                        [100%]
+
+=================================== FAILURES ===================================
+_________________________ test_inspection_days_integer _________________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x710810fc8a70>
+
+    def test_inspection_days_integer(monkeypatch):
+        # Mock services to return controlled data
+        monkeypatch.setattr("app.services.excel1_rules_service.Excel1RulesService.calculate_rules", lambda *a: [])
+        monkeypatch.setattr("app.services.inspection_rules_service.InspectionRulesService.calculate_rules", lambda *a: [
+            Mock(job_number="B378", total_inspection_days=108.5, valid_records=50, total_others_contribution=0.0) # Assuming it could be float
+        ])
+        monkeypatch.setattr("app.services.session_service.SessionService.get_session", lambda *a: Mock(
+            excel3_file_id="mock_id",
+            evaluation_month="2026-08",
+            mapping=Mock(excel3=Mock(
+                workbook_file_id="mock_id",
+                sheet="Jul25",
+                columns=Mock(ocs_done="OCS done", others="Others", expediting="Exp.", total="Total", job_number="Job No", orders_for_fd="Orders For", inspection="Inspn")
+            ))
+        ))
+        monkeypatch.setattr("app.services.session_service.SessionService.get_df_cache", lambda *a, **kw: None)
+    
+        # Calculate
+        results = CombinedEngineService.calculate_combined("test_session", ["B378"])
+    
+        assert len(results) == 1
+        # Check that Inspection Days is cast to integer without multiplying by 8
+>       assert results[0].inspection == 108.0
+E       AssertionError: assert 864.0 == 108.0
+E        +  where 864.0 = CombinedJobSummary(job_number='B378', fd=0, running_orders=0, ocs_done=0.0, expediting=0, native_expediting_used=False...: Excel 2 (Filtered for 2026-08)', 'Meeting: 0.0', '  Source: Default (0.0)', 'Calculated Total: 864.0'], lineage=None).inspection
+
+tests/test_phase11_lineage.py:35: AssertionError
+----------------------------- Captured stdout call -----------------------------
+df3 len: None df3_matched len: 0
+INTEGER CONVERSION: job=B378, field=e2_inspection, value=108.5, type=<class 'float'>
+INTEGER CONVERSION: job=B378, field=expediting, ro=0, ocs_done=0, value=0, type=<class 'int'>
+_________________________ test_evidence_string_lineage _________________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7107e436b4a0>
+
+    def test_evidence_string_lineage(monkeypatch):
+        monkeypatch.setattr("app.services.excel1_rules_service.Excel1RulesService.calculate_rules", lambda *a: [
+            Mock(job_number="B378", fd=1, running_orders=11, ocs_done=1)
+        ])
+        monkeypatch.setattr("app.services.inspection_rules_service.InspectionRulesService.calculate_rules", lambda *a: [
+            Mock(job_number="B378", total_inspection_days=108, valid_records=50, total_others_contribution=0.0)
+        ])
+    
+        import pandas as pd
+        df3_mock = pd.DataFrame({
+            "Job No": ["B378"],
+            "OCS done": [1],
+            "Exp.": [24],
+            "Inspn": [108],
+            "Others": [16],
+            "Total": [56],
+        })
+    
+        monkeypatch.setattr("app.services.session_service.SessionService.get_session", lambda *a: Mock(
+            excel3_file_id="mock_id",
+            evaluation_month="2026-08",
+            mapping=Mock(excel3=Mock(
+                workbook_file_id="mock_id",
+                sheet="Jul25",
+                columns=Mock(ocs_done="OCS done", others="Others", expediting="Exp.", total="Total", job_number="Job No", orders_for_fd="Orders For", inspection="Inspn")
+            ))
+        ))
+        monkeypatch.setattr("app.services.session_service.SessionService.get_df_cache", lambda *a, **kw: df3_mock)
+    
+        results = CombinedEngineService.calculate_combined("test_session", ["B378"])
+    
+        assert len(results) == 1
+        res = results[0]
+    
+        assert res.expediting == 24 # (11 + 1) * 2 = 24
+>       assert res.inspection == 108.0
+E       AssertionError: assert 864.0 == 108.0
+E        +  where 864.0 = CombinedJobSummary(job_number='B378', fd=1, running_orders=11, ocs_done=1.0, expediting=24, native_expediting_used=Fal...: Excel 2 (Filtered for 2026-08)', 'Meeting: 0.0', '  Source: Default (0.0)', 'Calculated Total: 888.0'], lineage=None).inspection
+
+tests/test_phase11_lineage.py:77: AssertionError
+----------------------------- Captured stdout call -----------------------------
+df3 len: 1 df3_matched len: 1
+INTEGER CONVERSION: job=B378, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B378, field=e2_inspection, value=108, type=<class 'int'>
+INTEGER CONVERSION: job=B378, field=expediting, ro=11, ocs_done=1, value=24, type=<class 'int'>
+=========================== short test summary info ============================
+FAILED tests/test_phase11_lineage.py::test_inspection_days_integer - Assertio...
+FAILED tests/test_phase11_lineage.py::test_evidence_string_lineage - Assertio...
+========================= 2 failed, 1 passed in 0.34s ==========================

@@ -203,34 +203,84 @@ export const OutputDashboard: React.FC<OutputDashboardProps> = ({ sessionId, sel
             <table className="w-full text-left text-sm whitespace-nowrap">
               <thead className="bg-gray-100 text-gray-600 font-bold uppercase tracking-wider text-xs border-b">
                 <tr>
-                  <th className="px-4 py-3 w-10 text-center">Output</th>
-                  <th className="px-4 py-3">Job No.</th>
-                  <th className="px-4 py-3">Field</th>
-                  <th className="px-4 py-3">Sheet</th>
-                  <th className="px-4 py-3 bg-green-50/50 border-l border-gray-200">Calculated Value</th>
+                  <th className="px-4 py-3 sticky left-0 bg-gray-100 z-10 border-r border-gray-200">Job No.</th>
+                  <th className="px-4 py-3 text-center">FD</th>
+                  <th className="px-4 py-3 text-center">Running Orders</th>
+                  <th className="px-4 py-3 text-center">OCS Done</th>
+                  <th className="px-4 py-3 text-center">Expediting</th>
+                  <th className="px-4 py-3 text-center">Inspection</th>
+                  <th className="px-4 py-3 text-center">Others</th>
+                  <th className="px-4 py-3 text-center">Meeting</th>
+                  <th className="px-4 py-3 text-center">Total</th>
+                  <th className="px-4 py-3 text-center">Audit</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {plan.cells_to_modify.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500 italic">
+                    <td colSpan={10} className="px-4 py-8 text-center text-gray-500 italic">
                       No jobs approved for output. Please approve jobs in the Review tab.
                     </td>
                   </tr>
                 ) : (
-                  plan.cells_to_modify.map((c, i) => (
-                    <tr key={i} className={`transition-colors hover:bg-gray-50`}>
-                      <td className="px-4 py-3 text-center">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500 mx-auto" />
-                      </td>
-                      <td className="px-4 py-3 font-black text-gray-800">{c.job_number}</td>
-                      <td className="px-4 py-3 text-gray-600 font-medium uppercase tracking-wider text-[11px]">{c.logical_field.replace('_', ' ')}</td>
-                      <td className="px-4 py-3 text-gray-600"><span className="bg-gray-100 px-2 py-0.5 rounded font-mono text-xs">{c.sheet_name}</span></td>
-                      <td className="px-4 py-3 bg-green-50/20 font-bold text-green-700 font-mono text-sm border-l border-gray-200">
-                        {c.new_value !== null ? String(c.new_value) : <span className="text-gray-400 italic font-sans text-xs">Blank</span>}
-                      </td>
-                    </tr>
-                  ))
+                  (() => {
+                    const map: Record<string, any> = {};
+                    plan.cells_to_modify.forEach(c => {
+                      if (!map[c.job_number]) {
+                        map[c.job_number] = { job_number: c.job_number, fields: {}, cells: [] };
+                      }
+                      map[c.job_number].fields[c.logical_field] = c.new_value;
+                      map[c.job_number].cells.push(c);
+                    });
+                    const jobWiseData = Object.values(map).sort((a, b) => a.job_number.localeCompare(b.job_number));
+                    
+                    return jobWiseData.map((job, i) => (
+                      <React.Fragment key={i}>
+                        <tr className="transition-colors hover:bg-gray-50">
+                          <td className="px-4 py-3 font-black text-gray-800 sticky left-0 bg-white group-hover:bg-gray-50 z-10 border-r border-gray-200">{job.job_number}</td>
+                          <td className="px-4 py-3 text-center font-mono text-gray-700">{job.fields.orders_for_fd !== undefined && job.fields.orders_for_fd !== null ? job.fields.orders_for_fd : <span className="text-gray-300">-</span>}</td>
+                          <td className="px-4 py-3 text-center font-mono text-gray-700">{job.fields.running_orders !== undefined && job.fields.running_orders !== null ? job.fields.running_orders : <span className="text-gray-300">-</span>}</td>
+                          <td className="px-4 py-3 text-center font-mono text-gray-700">{job.fields.ocs_done !== undefined && job.fields.ocs_done !== null ? job.fields.ocs_done : <span className="text-gray-300">-</span>}</td>
+                          <td className="px-4 py-3 text-center font-mono text-gray-700">{job.fields.expediting !== undefined && job.fields.expediting !== null ? job.fields.expediting : <span className="text-gray-300">-</span>}</td>
+                          <td className="px-4 py-3 text-center font-mono font-bold text-indigo-700 bg-indigo-50/30">{job.fields.inspection !== undefined && job.fields.inspection !== null ? job.fields.inspection : <span className="text-gray-300">-</span>}</td>
+                          <td className="px-4 py-3 text-center font-mono text-gray-700">{job.fields.others !== undefined && job.fields.others !== null ? job.fields.others : <span className="text-gray-300">-</span>}</td>
+                          <td className="px-4 py-3 text-center font-mono text-gray-700">{job.fields.meeting !== undefined && job.fields.meeting !== null ? job.fields.meeting : <span className="text-gray-300">-</span>}</td>
+                          <td className="px-4 py-3 text-center font-mono font-black text-emerald-700 bg-emerald-50/30">{job.fields.total !== undefined && job.fields.total !== null ? job.fields.total : <span className="text-gray-300">-</span>}</td>
+                          <td className="px-4 py-3 text-center">
+                            <button 
+                              onClick={() => {
+                                const el = document.getElementById(`audit-${job.job_number}`);
+                                if (el) {
+                                  el.classList.toggle('hidden');
+                                }
+                              }}
+                              className="text-xs text-indigo-600 hover:text-indigo-800 font-bold hover:underline"
+                            >
+                              Details
+                            </button>
+                          </td>
+                        </tr>
+                        <tr id={`audit-${job.job_number}`} className="hidden bg-gray-50 border-b border-gray-200">
+                          <td colSpan={10} className="px-6 py-4">
+                            <div className="text-xs font-bold text-gray-500 mb-2 uppercase">Field Mapping Audit Trail for {job.job_number}</div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                              {job.cells.map((c: any, idx: number) => (
+                                <div key={idx} className="bg-white border rounded p-2 text-xs shadow-sm flex justify-between items-center">
+                                  <div>
+                                    <span className="font-bold text-gray-700 uppercase">{c.logical_field.replace(/_/g, ' ')}</span>
+                                    <div className="text-gray-400 font-mono mt-0.5">{c.sheet_name}</div>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-mono font-bold text-emerald-600">{c.new_value !== null ? String(c.new_value) : 'Blank'}</div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      </React.Fragment>
+                    ));
+                  })()
                 )}
               </tbody>
             </table>

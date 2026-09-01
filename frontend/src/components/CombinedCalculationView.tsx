@@ -243,12 +243,19 @@ export const CombinedCalculationView: React.FC<CombinedCalculationViewProps> = (
                         
                         {/* Inspection Input */}
                         <td className="px-4 py-2 relative group">
-                          <input 
-                            type="text" value={formatVal(effInsp)}
-                            onChange={(e) => handleManualInputChange(res.job_number, 'inspection', e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') applyManualInputs(); }}
-                            placeholder="Missing" className={inputClass('inspection', effInsp)}
-                          />
+                          <div className="flex flex-col items-center">
+                            <input 
+                              type="text" value={formatVal(effInsp)}
+                              onChange={(e) => handleManualInputChange(res.job_number, 'inspection', e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') applyManualInputs(); }}
+                              placeholder="Missing" className={inputClass('inspection', effInsp)}
+                            />
+                            {!isOverride('inspection') && res.inspection_days !== undefined && res.inspection_days !== null && (
+                              <div className="text-[10px] text-gray-500 font-bold mt-1 whitespace-nowrap">
+                                ({res.inspection_days} days × 8)
+                              </div>
+                            )}
+                          </div>
                           {isOverride('inspection') && <div className="hidden group-hover:block absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10">Manual Override</div>}
                         </td>
                         

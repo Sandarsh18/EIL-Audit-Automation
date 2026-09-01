@@ -112,7 +112,7 @@ def test_output_custom_workbook():
     # Check calculated values
     b269_row = data[1]
     insp_idx = headers.index("Inspn")
-    assert b269_row[insp_idx] == 3 # 2026-08 10 to 12 is 3 days
+    assert b269_row[insp_idx] == 24.0 # 3 days in August * 8
     
     wb.close()
     

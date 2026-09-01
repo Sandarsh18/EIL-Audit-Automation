@@ -2,6 +2,7 @@ import os
 import shutil
 import hashlib
 import openpyxl
+import copy
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Tuple, Optional
 from fastapi import HTTPException
@@ -37,6 +38,9 @@ class OutputEngine:
         from app.config import UPLOAD_DIR
         e3_path = os.path.join(UPLOAD_DIR, f"{session.excel3_file_id}.xlsx")
         
+        if not os.path.exists(e3_path):
+            raise HTTPException(400, "Original Excel 3 not found on disk. Please upload it again.")
+            
         wb = openpyxl.load_workbook(e3_path, data_only=False)
         reviews = ReviewService.get_reviews(session_id, request.job_numbers, request.evaluation_month)
         job_reviews = {r.job_number: r for r in reviews}
@@ -172,7 +176,7 @@ class OutputEngine:
             if not request.custom_columns:
                 request.custom_columns = []
             if not any(cc.heading.lower() == "meeting" for cc in request.custom_columns):
-                request.custom_columns.append(meeting_cc)
+                request.custom_columns.insert(0, meeting_cc)
         
         working_dir = os.path.join(os.path.dirname(UPLOAD_DIR), "working", session_id)
         os.makedirs(working_dir, exist_ok=True)
@@ -224,16 +228,39 @@ class OutputEngine:
             if cell.value:
                 headers[str(cell.value).strip()] = col_idx
                 
-        # Append Custom Columns headers if provided
+        # Unmerge any horizontal merges in the tabular data area to prevent openpyxl 
+        # from corrupting the layout when we insert custom columns.
+        # This guarantees Total and Custom Columns occupy exactly one logical column each.
+        ranges_to_unmerge = []
+        for merged_range in list(sheet.merged_cells.ranges):
+            if merged_range.max_row >= header_row and merged_range.min_col != merged_range.max_col:
+                ranges_to_unmerge.append(merged_range)
+        for mr in ranges_to_unmerge:
+            sheet.unmerge_cells(str(mr))
+
+        # Insert Custom Columns headers if provided
         custom_column_indices = {}
         if request.custom_columns:
-            start_col = sheet.max_column + 1
+            tot_col_idx = headers.get(mapping.get('total'))
+            num_cols = len(request.custom_columns)
+            
+            if tot_col_idx:
+                sheet.insert_cols(tot_col_idx, amount=num_cols)
+                start_col = tot_col_idx
+                
+                # Update headers map since columns shifted right
+                for key, val in list(headers.items()):
+                    if val >= tot_col_idx:
+                        headers[key] = val + num_cols
+            else:
+                start_col = sheet.max_column + 1
+                
             for i, cc in enumerate(request.custom_columns):
                 col_idx = start_col + i
                 sheet.cell(row=header_row, column=col_idx).value = cc.heading
                 custom_column_indices[cc.heading] = col_idx
                 # Apply style from previous header if possible
-                prev_cell = sheet.cell(row=header_row, column=col_idx - 1)
+                prev_cell = sheet.cell(row=header_row, column=start_col - 1)
                 if prev_cell.has_style:
                     sheet.cell(row=header_row, column=col_idx).font = copy.copy(prev_cell.font)
                     sheet.cell(row=header_row, column=col_idx).fill = copy.copy(prev_cell.fill)
@@ -253,7 +280,6 @@ class OutputEngine:
                 elif v_lower == "total":
                     total_row_orig = r_idx
 
-        import copy
         default_style_row = header_row + 1
         styles = {}
         if default_style_row <= max_row:

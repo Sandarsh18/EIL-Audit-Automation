@@ -1,0 +1,102 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/1RV24MC093_SANDARSH_J_N/projects/eil1/backend
+plugins: anyio-4.14.2
+collected 1 item
+
+tests/test_native_formula_preservation.py F                              [100%]
+
+=================================== FAILURES ===================================
+______________________ test_native_formula_and_overrides _______________________
+
+    def test_native_formula_and_overrides():
+        resp = client.post("/api/sessions")
+        s_id = resp.json()["session_id"]
+    
+        df1 = pd.DataFrame({"Job No.": ["B123"], "Balance Quantity": [5], "OCS Date": [None]})
+        df2 = pd.DataFrame({"Job No.": ["B123"], "Inspection Attended (From)": ["2026-08-10"], "Inspection Attended (Upto)": ["2026-08-11"]})
+        # Native Expediting is 25 (hardcoded or formula value extracted by pandas)
+        df3 = pd.DataFrame({"Job No.": ["B123"], "Running Orders": [2], "Orders For": [1], "OCS Done": [3], "Expediting": [25], "Inspection": [0], "Others": [5], "Total": [0]})
+    
+        os.makedirs("tests/fixtures", exist_ok=True)
+        df1.to_excel("tests/fixtures/np_e1.xlsx", index=False)
+        df2.to_excel("tests/fixtures/np_e2.xlsx", index=False)
+        df3.to_excel("tests/fixtures/np_e3.xlsx", index=False)
+    
+        with open("tests/fixtures/np_e1.xlsx", "rb") as f:
+            client.post(f"/api/sessions/{s_id}/files/excel1", files={"file": ("np_e1.xlsx", f, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")})
+        with open("tests/fixtures/np_e2.xlsx", "rb") as f:
+            client.post(f"/api/sessions/{s_id}/files/excel2", files={"file": ("np_e2.xlsx", f, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")})
+        with open("tests/fixtures/np_e3.xlsx", "rb") as f:
+            client.post(f"/api/sessions/{s_id}/files/excel3", files={"file": ("np_e3.xlsx", f, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")})
+    
+        payload = {
+            "excel1": {"sheet": "Sheet1", "columns": {"job_number": "Job No.", "balance_quantity": "Balance Quantity", "ocs_date": "OCS Date"}},
+            "excel2": {"sheet": "Sheet1", "columns": {"job_number": "Job No.", "inspection_from": "Inspection Attended (From)", "inspection_upto": "Inspection Attended (Upto)"}},
+            "excel3": {"sheet": "Sheet1", "columns": {"job_number": "Job No.", "running_orders": "Running Orders", "orders_for_fd": "Orders For", "ocs_done": "OCS Done", "expediting": "Expediting", "inspection": "Inspection", "others": "Others", "total": "Total"}}
+        }
+        client.post(f"/api/sessions/{s_id}/mapping", json=payload)
+        client.post(f"/api/sessions/{s_id}/evaluation-month", json={"evaluation_month": "2026-08"})
+    
+        resp_calc = client.post(f"/api/sessions/{s_id}/calculations/combined", json={"job_numbers": ["B123"], "evaluation_month": "2026-08"})
+        res = resp_calc.json()[0]
+    
+        # 1. Verify Excel 3 Decoupling (It should use 2 instead of the garbage 25 in Excel 3)
+        # df1 -> bal 5 -> RO 1. Ocs date None -> Ocs done 0. Rule = (1+0)*2=2.
+        assert res["expediting"] == 2
+        assert res["native_expediting_used"] is False
+    
+        # Inspection comes from Excel 2 (2 days)
+        assert res["inspection"] == 8.0
+    
+        # Others is defaulted to 0
+        assert res["others"] == 0.0
+    
+        # Total is 2 + 16 + 0 = 18
+        assert res["calculated_total"] == 10.0
+    
+        # 2. Review Override overrides the derived calculation
+        resp_ovr = client.post(f"/api/sessions/{s_id}/jobs/B123/overrides", json={"field": "ocs_done", "value": 5})
+        res_ovr = resp_ovr.json()
+    
+        assert res_ovr["ocs_done"] == 5
+        # Recalculates based on (RO 1 + overridden OCS 5) * 2 = 12
+        assert res_ovr["expediting"] == 12
+        assert res_ovr["native_expediting_used"] is False
+    
+        # Total = 12 + 16 (Insp) + 0 (Others) = 28
+>       assert res_ovr["calculated_total"] == 28.0
+E       assert 20.0 == 28.0
+
+tests/test_native_formula_preservation.py:65: AssertionError
+----------------------------- Captured stdout call -----------------------------
+df3 len: 1 df3_matched len: 1
+INTEGER CONVERSION: job=B123, field=e3_ocs, raw=3, parsed=3.0, type=<class 'float'>
+INTEGER CONVERSION: job=B123, field=e3_running_orders, raw=2, parsed=2.0, type=<class 'float'>
+INTEGER CONVERSION: job=B123, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B123, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+df3 len: 1 df3_matched len: 1
+INTEGER CONVERSION: job=B123, field=e3_ocs, raw=3, parsed=3.0, type=<class 'float'>
+INTEGER CONVERSION: job=B123, field=e3_running_orders, raw=2, parsed=2.0, type=<class 'float'>
+INTEGER CONVERSION: job=B123, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B123, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+df3 len: 1 df3_matched len: 1
+INTEGER CONVERSION: job=B123, field=e3_ocs, raw=3, parsed=3.0, type=<class 'float'>
+INTEGER CONVERSION: job=B123, field=e3_running_orders, raw=2, parsed=2.0, type=<class 'float'>
+INTEGER CONVERSION: job=B123, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B123, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+df3 len: 1 df3_matched len: 1
+INTEGER CONVERSION: job=B123, field=e3_ocs, raw=3, parsed=3.0, type=<class 'float'>
+INTEGER CONVERSION: job=B123, field=e3_running_orders, raw=2, parsed=2.0, type=<class 'float'>
+INTEGER CONVERSION: job=B123, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B123, field=expediting, ro=1, ocs_done=5.0, value=12.0, type=<class 'float'>
+REVIEW JOB=B123 EVALUATION_MONTH=Job: B123 INSPECTION_DAYS=8.0 SOURCE=COMBINED_CALCULATION
+=============================== warnings summary ===============================
+../venv/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /home/1RV24MC093_SANDARSH_J_N/projects/eil1/venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_native_formula_preservation.py::test_native_formula_and_overrides
+========================= 1 failed, 1 warning in 0.66s =========================
