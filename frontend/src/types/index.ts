@@ -204,7 +204,9 @@ export interface CombinedJobSummary {
   ocs_done: number | null;
   expediting: number | null;
   native_expediting_used: boolean;
+  inspection_days?: number | null;
   inspection: number | null;
+  inspection_man_hours?: number | null;
   others: number | null;
   meeting?: number | null;
   calculated_total: number | null;

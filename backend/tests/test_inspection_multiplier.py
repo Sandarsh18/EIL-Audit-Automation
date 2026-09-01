@@ -24,8 +24,12 @@ def test_inspection_multiples():
         return [
             Mock(job_number="J0", valid_records=0, total_inspection_days=0, evidence=[], total_others_contribution=0.0),
             Mock(job_number="J1", valid_records=1, total_inspection_days=1, evidence=[], total_others_contribution=0.0),
-            Mock(job_number="J2", valid_records=2, total_inspection_days=2, evidence=[], total_others_contribution=0.0),
-            Mock(job_number="J5", valid_records=5, total_inspection_days=5, evidence=[], total_others_contribution=0.0),
+            Mock(job_number="J2", valid_records=1, total_inspection_days=2, evidence=[], total_others_contribution=0.0),
+            Mock(job_number="J3", valid_records=2, total_inspection_days=3, evidence=[], total_others_contribution=0.0),
+            Mock(job_number="J6", valid_records=2, total_inspection_days=6, evidence=[], total_others_contribution=0.0),
+            Mock(job_number="J8", valid_records=3, total_inspection_days=8, evidence=[], total_others_contribution=0.0),
+            Mock(job_number="J9", valid_records=4, total_inspection_days=9, evidence=[], total_others_contribution=0.0),
+            Mock(job_number="J10", valid_records=5, total_inspection_days=10, evidence=[], total_others_contribution=0.0),
             Mock(job_number="JM", valid_records=0, total_inspection_days=None, evidence=[], total_others_contribution=0.0),
         ]
 
@@ -36,7 +40,7 @@ def test_inspection_multiples():
                     
                     results = CombinedEngineService.calculate_combined(
                         session_id=session_id,
-                        job_numbers=["J0", "J1", "J2", "J5", "JM"],
+                        job_numbers=["J0", "J1", "J2", "J3", "J6", "J8", "J9", "J10", "JM"],
                         manual_inputs={},
                         evaluation_month="2026-08"
                     )
@@ -44,10 +48,32 @@ def test_inspection_multiples():
                     res_dict = {r.job_number: r for r in results}
                     
                     assert res_dict["J0"].inspection == 0
+                    assert res_dict["J0"].inspection_days == 0
+                    assert res_dict["J0"].inspection_man_hours == 0
+
                     assert res_dict["J1"].inspection == 8
+                    assert res_dict["J1"].inspection_days == 1
+                    
                     assert res_dict["J2"].inspection == 16
-                    assert res_dict["J5"].inspection == 40
+                    assert res_dict["J2"].inspection_days == 2
+                    
+                    assert res_dict["J3"].inspection == 24
+                    assert res_dict["J3"].inspection_days == 3
+
+                    assert res_dict["J6"].inspection == 48
+                    assert res_dict["J6"].inspection_days == 6
+                    
+                    assert res_dict["J8"].inspection == 64
+                    assert res_dict["J8"].inspection_days == 8
+
+                    assert res_dict["J9"].inspection == 72
+                    assert res_dict["J9"].inspection_days == 9
+
+                    assert res_dict["J10"].inspection == 80
+                    assert res_dict["J10"].inspection_days == 10
+
                     assert res_dict["JM"].inspection == 0
+                    assert res_dict["JM"].inspection_days == 0
                 
 def test_inspection_manual_override_not_multiplied():
     session_id = "test-session-2"
@@ -63,7 +89,7 @@ def test_inspection_manual_override_not_multiplied():
     
     def mock_e1(s, j, m): return []
     def mock_e2(s, j, m):
-        return [Mock(job_number="J1", valid_records=1, total_inspection_days=1, evidence=[], total_others_contribution=0.0)]
+        return [Mock(job_number="J1", valid_records=1, total_inspection_days=9, evidence=[], total_others_contribution=0.0)]
 
     with patch('app.services.combined_engine_service.SessionService.get_session', return_value=session):
         with patch('app.services.combined_engine_service.Excel1RulesService.calculate_rules', side_effect=mock_e1):
@@ -73,8 +99,9 @@ def test_inspection_manual_override_not_multiplied():
                     results = CombinedEngineService.calculate_combined(
                         session_id=session_id,
                         job_numbers=["J1"],
-                        manual_inputs={"J1": ManualInputs(inspection=16)},
+                        manual_inputs={"J1": ManualInputs(inspection=64)},
                         evaluation_month="2026-08"
                     )
                     
-                    assert results[0].inspection == 16 # NOT 128
+                    assert results[0].inspection == 64 # NOT 512
+                    assert results[0].inspection_days == 9 # Original days preserved for display

@@ -63,6 +63,9 @@ export const Dashboard: React.FC = () => {
 
   const handleRestoreSession = (restoredSession: Session, frontendState: any) => {
     setSession(restoredSession);
+    if (restoredSession.evaluation_month) {
+      setEvaluationMonth(restoredSession.evaluation_month);
+    }
     setCurrentStep(frontendState.currentStep || 1);
     setSelectedJobNumbers(frontendState.selectedJobNumbers || null);
     setIsMappingValid(frontendState.isMappingValid || false);

@@ -44,13 +44,13 @@ def test_native_formula_and_overrides():
     assert res["native_expediting_used"] is False
     
     # Inspection comes from Excel 2 (2 days)
-    assert res["inspection"] == 8.0
+    assert res["inspection"] == 16.0
     
     # Others is defaulted to 0
     assert res["others"] == 0.0
     
-    # Total is 2 + 16 + 0 = 18
-    assert res["calculated_total"] == 10.0
+    # Total is 2 + 16 + 0 = 18.0
+    assert res["calculated_total"] == 18.0
     
     # 2. Review Override overrides the derived calculation
     resp_ovr = client.post(f"/api/sessions/{s_id}/jobs/B123/overrides", json={"field": "ocs_done", "value": 5})
@@ -61,8 +61,8 @@ def test_native_formula_and_overrides():
     assert res_ovr["expediting"] == 12
     assert res_ovr["native_expediting_used"] is False
     
-    # Total = 12 + 8 (Insp) + 0 (Others) = 20
-    assert res_ovr["calculated_total"] == 20.0
+    # Total = 12 + 16 (Insp) + 0 (Others) = 28.0
+    assert res_ovr["calculated_total"] == 28.0
     
     # 3. Resetting override goes back to derived 2, not Excel 3 25
     resp_reset = client.post(f"/api/sessions/{s_id}/jobs/B123/reset-overrides")
@@ -70,7 +70,7 @@ def test_native_formula_and_overrides():
     
     assert res_reset["ocs_done"] == 0
     assert res_reset["expediting"] == 2
-    assert res_reset["calculated_total"] == 10.0
+    assert res_reset["calculated_total"] == 18.0
     assert res_reset["overrides"]["ocs_done"]["active"] is False # Audit historical evidence remains
     
     os.remove("tests/fixtures/np_e1.xlsx")

@@ -75,7 +75,7 @@ export const UploadSlot: React.FC<UploadSlotProps> = ({ title, type, sessionId, 
           </div>
         </div>
       ) : (
-        <div className="w-full p-4 border border-green-200 bg-green-50 rounded-lg relative">
+        <div className="w-full p-4 border border-green-200 bg-green-50 rounded-lg relative flex flex-col items-center">
           <button 
             onClick={onRemove}
             className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
@@ -88,13 +88,30 @@ export const UploadSlot: React.FC<UploadSlotProps> = ({ title, type, sessionId, 
             <CheckCircle className="w-6 h-6" />
             <span className="font-semibold">Uploaded</span>
           </div>
-          <div className="flex items-center justify-center space-x-2 text-sm text-gray-700">
+          <div className="flex items-center justify-center space-x-2 text-sm text-gray-700 mb-2">
             <FileSpreadsheet className="w-4 h-4 text-gray-500 flex-shrink-0" />
             <span className="truncate max-w-[180px]" title={metadata.filename}>{metadata.filename}</span>
           </div>
-          <div className="mt-2 text-xs text-gray-500">
+          <div className="text-xs text-gray-500 mb-4">
             {metadata.sheets.length} sheets • {(metadata.size / 1024).toFixed(1)} KB
           </div>
+          
+          {type === 'excel3' && (
+            <label className="cursor-pointer bg-white border border-blue-300 text-blue-700 hover:bg-blue-50 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm w-full text-center">
+              {isUploading ? (
+                <span className="flex items-center justify-center"><Loader2 className="w-3 h-3 animate-spin mr-1"/> Uploading...</span>
+              ) : (
+                "Replace Master Template"
+              )}
+              <input type="file" className="hidden" accept=".xlsx" onChange={(e) => {
+                if (window.confirm("Replacing the Master Template will invalidate generated output and require re-mapping. Continue?")) {
+                  handleFileChange(e);
+                } else {
+                  e.target.value = '';
+                }
+              }} disabled={isUploading} />
+            </label>
+          )}
         </div>
       )}
     </div>

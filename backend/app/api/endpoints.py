@@ -83,6 +83,14 @@ def load_project(project_id: str):
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Project not found")
 
+@router.delete("/projects/{project_id}")
+def delete_project(project_id: str):
+    try:
+        ProjectService.delete_project(project_id)
+        return {"status": "success", "message": "Project deleted"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/sessions/{session_id}/files/{workbook_type}", response_model=WorkbookMetadata)
 async def upload_workbook(session_id: str, workbook_type: str, file: UploadFile = File(...)):
     if workbook_type not in ["excel1", "excel2", "excel3"]:
@@ -105,6 +113,19 @@ async def upload_workbook(session_id: str, workbook_type: str, file: UploadFile 
     # Validate we can read it and extract metadata
     try:
         metadata = ExcelService.get_workbook_metadata(file_path, file_id, file.filename, workbook_type)
+        
+        # If this is a replacement (a file was already uploaded for this type)
+        session = SessionService.get_session(session_id)
+        if workbook_type == "excel3" and session.excel3_file_id is not None:
+            # Invalidate generated output
+            SessionService.set_generated_output(session_id, None, None)
+            
+            # Reset approvals (keep overrides but unapprove)
+            from app.services.review_service import _review_state
+            if session_id in _review_state:
+                for job_num in _review_state[session_id]:
+                    _review_state[session_id][job_num]["approved"] = False
+                    
         SessionService.update_session_file(session_id, workbook_type, file_id)
         return metadata
     except Exception as e:

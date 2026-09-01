@@ -98,9 +98,9 @@ def test_phase16_b269_acceptance():
     assert b269["running_orders"] == 4
     assert b269["ocs_done"] == 9
     assert b269["expediting"] == 26 # (4 + 9) * 2
-    assert b269["inspection"] == 24.0 # 3 valid records * 8
+    assert b269["inspection"] == 64.0 # 8 valid days * 8
     assert b269["others"] == 0
-    assert b269["calculated_total"] == 50.0 # 26 + 24 + 0
+    assert b269["calculated_total"] == 90.0 # 26 + 64 + 0
     
     # 4. Generate Output (Approve and write)
     client.post(f"/api/sessions/{s_id}/jobs/B269/approve", json={"acknowledge_warnings": True})
@@ -142,10 +142,10 @@ def test_phase16_b269_acceptance():
             assert row[2] == 1 # FD (Orders for FD)
             assert row[3] == 9 # OCS
             assert row[4] == 26 # Exp
-            assert row[5] == 24 # Insp (3 records * 8)
+            assert row[5] == 64 # Insp (8 days * 8)
             assert row[6] == 0 # Others
             assert row[7] == 0 # Meeting (added in previous commit)
-            assert row[8] == 50 # Total (26 + 24 + 0)
+            assert row[8] == 90 # Total (26 + 64 + 0)
             break
             
     # Also verify inspection evidence payload directly to ensure we have exactly 3 valid and 6 invalid/excluded records

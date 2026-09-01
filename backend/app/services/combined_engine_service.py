@@ -164,10 +164,13 @@ class CombinedEngineService:
             meeting = m_input.meeting if m_input.meeting is not None else 0.0
             
             # Inspection strictly from Excel 2, or manual override
-            if e2 and e2.valid_records is not None:
-                print(f"INTEGER CONVERSION: job={job}, field=e2_inspection_count, value={e2.valid_records}, type={type(e2.valid_records)}")
-            base_inspection = int(e2.valid_records) if e2 and e2.valid_records is not None else 0
-            inspection = m_input.inspection if m_input.inspection is not None else (base_inspection * 8)
+            if e2 and e2.total_inspection_days is not None:
+                print(f"FLOAT CONVERSION: job={job}, field=e2_inspection_days, value={e2.total_inspection_days}, type={type(e2.total_inspection_days)}")
+            
+            base_inspection_days = float(e2.total_inspection_days) if e2 and e2.total_inspection_days is not None else 0.0
+            inspection_man_hours = base_inspection_days * 8.0
+            
+            inspection = m_input.inspection if m_input.inspection is not None else inspection_man_hours
             
             # Derived logic
             expediting_is_native = False
@@ -230,10 +233,11 @@ class CombinedEngineService:
                 
 
             if inspection is not None:
-                evidence.append(f"Inspection: {inspection}")
+                evidence.append(f"Inspection Days: {base_inspection_days}")
                 if m_input.inspection is not None:
-                    evidence.append("  Source: Manual Override")
+                    evidence.append(f"Inspection: {inspection} (Manual Override)")
                 else:
+                    evidence.append(f"Inspection: {base_inspection_days} days × 8 = {inspection} man-hours")
                     evidence.append(f"  Source: Excel 2 (Filtered for {evaluation_month})")
             else:
                 evidence.append("Inspection: MISSING / N/A")
@@ -274,7 +278,9 @@ class CombinedEngineService:
                 ocs_done=ocs_done,
                 expediting=expediting,
                 native_expediting_used=expediting_is_native,
+                inspection_days=base_inspection_days if e2 else None,
                 inspection=inspection,
+                inspection_man_hours=inspection_man_hours,
                 others=others,
                 meeting=meeting,
                 calculated_total=calculated_total,

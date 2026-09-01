@@ -30,7 +30,9 @@ class CombinedJobSummary(BaseModel):
     ocs_done: Optional[float]
     expediting: Optional[int]
     native_expediting_used: bool = False
+    inspection_days: Optional[float] = None
     inspection: Optional[float]
+    inspection_man_hours: Optional[float] = None
     others: Optional[float]
     meeting: Optional[float] = None
     calculated_total: Optional[float] = None

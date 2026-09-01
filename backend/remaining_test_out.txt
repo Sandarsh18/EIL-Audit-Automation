@@ -1,0 +1,592 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/1RV24MC093_SANDARSH_J_N/projects/eil1/backend
+plugins: anyio-4.14.2
+collected 10 items
+
+tests/test_inspection_attended_logic.py F                                [ 10%]
+tests/test_native_formula_preservation.py F                              [ 20%]
+tests/test_output_custom_workbook.py F                                   [ 30%]
+tests/test_phase11_lineage.py .FF                                        [ 60%]
+tests/test_review_workflow.py FF..                                       [100%]
+
+=================================== FAILURES ===================================
+________________ test_inspection_attended_calculation_isolation ________________
+
+    def test_inspection_attended_calculation_isolation():
+        resp = client.post("/api/sessions")
+        s_id = resp.json()["session_id"]
+    
+        df1 = pd.DataFrame({
+            "Job No.": ["B269"],
+            "Balance Quantity": [10],
+            "OCS Date": ["2026-08-01"],
+        })
+    
+        # CRITICAL: Conflicting columns
+        # Inspection Date is 1-Aug to 2-Aug (1 day duration)
+        # Inspection Attended is 10-Aug to 12-Aug (2 days duration)
+        df2 = pd.DataFrame({
+            "Job No.": ["B269"],
+            "Inspection Date (From)": [datetime(2026, 8, 1)],
+            "Inspection Date (Upto)": [datetime(2026, 8, 2)],
+            "Inspection Attended (From)": [datetime(2026, 8, 10)],
+            "Inspection Attended (Upto)": [datetime(2026, 8, 12)],
+            "No. of Days": [2],
+        })
+    
+        df3 = pd.DataFrame({
+            "Job No": ["B269"],
+            "No. of Running orders": [1],
+            "Orders for FD f/up": [0],
+            "OCS done": [1],
+            "Exp.": [10],
+            "Inspn": [999], # old legacy data, should be replaced,
+            "Others": [0],
+            "Total": [20],
+        })
+    
+        os.makedirs("tests/fixtures", exist_ok=True)
+        df1.to_excel("tests/fixtures/tmp2_e1.xlsx", index=False)
+        df2.to_excel("tests/fixtures/tmp2_e2.xlsx", index=False)
+        df3.to_excel("tests/fixtures/tmp2_e3.xlsx", index=False)
+    
+        with open("tests/fixtures/tmp2_e1.xlsx", "rb") as f:
+            client.post(f"/api/sessions/{s_id}/files/excel1", files={"file": ("tmp2_e1.xlsx", f, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")})
+        with open("tests/fixtures/tmp2_e2.xlsx", "rb") as f:
+            client.post(f"/api/sessions/{s_id}/files/excel2", files={"file": ("tmp2_e2.xlsx", f, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")})
+        with open("tests/fixtures/tmp2_e3.xlsx", "rb") as f:
+            client.post(f"/api/sessions/{s_id}/files/excel3", files={"file": ("tmp2_e3.xlsx", f, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")})
+    
+        # The backend excel_service should have automatically picked "Inspection Attended (From)"
+        # We will explicitly map it here mimicking the frontend behavior with the new regex.
+        payload = {
+            "excel1": {"sheet": "Sheet1", "columns": {"job_number": "Job No.", "balance_quantity": "Balance Quantity", "ocs_date": "OCS Date"}},
+            "excel2": {"sheet": "Sheet1", "columns": {"job_number": "Job No.", "inspection_from": "Inspection Attended (From)", "inspection_upto": "Inspection Attended (Upto)"}},
+            "excel3": {"sheet": "Sheet1", "columns": {"job_number": "Job No", "running_orders": "No. of Running orders", "orders_for_fd": "Orders for FD f/up", "ocs_done": "OCS done", "expediting": "Exp.", "inspection": "Inspn", "others": "Others", "total": "Total"}}
+        }
+        client.post(f"/api/sessions/{s_id}/mapping", json=payload)
+        client.post(f"/api/sessions/{s_id}/evaluation-month", json={"evaluation_month": "2026-08"})
+    
+        calc_resp = client.post(f"/api/sessions/{s_id}/calculations/combined", json={"job_numbers": ["B269"], "evaluation_month": "2026-08"})
+        assert calc_resp.status_code == 200
+        b269_calc = calc_resp.json()[0]
+    
+        # Assert it used Attended (12 - 10 = 2), not Date (2 - 1 = 1)
+>       assert b269_calc["inspection"] == 24.0
+E       assert 8.0 == 24.0
+
+tests/test_inspection_attended_logic.py:71: AssertionError
+----------------------------- Captured stdout call -----------------------------
+JOB=B269
+RAW_OCS='2026-08-01'
+PARSED_OCS=2026-08-01
+EVAL_MONTH=2026-08
+WINDOW_START=2026-03-01
+WINDOW_END=2026-08-31
+ELIGIBLE=True
+df3 len: 1 df3_matched len: 1
+INTEGER CONVERSION: job=B269, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B269, field=e3_running_orders, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B269, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B269, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+______________________ test_native_formula_and_overrides _______________________
+
+    def test_native_formula_and_overrides():
+        resp = client.post("/api/sessions")
+        s_id = resp.json()["session_id"]
+    
+        df1 = pd.DataFrame({"Job No.": ["B123"], "Balance Quantity": [5], "OCS Date": [None]})
+        df2 = pd.DataFrame({"Job No.": ["B123"], "Inspection Attended (From)": ["2026-08-10"], "Inspection Attended (Upto)": ["2026-08-11"]})
+        # Native Expediting is 25 (hardcoded or formula value extracted by pandas)
+        df3 = pd.DataFrame({"Job No.": ["B123"], "Running Orders": [2], "Orders For": [1], "OCS Done": [3], "Expediting": [25], "Inspection": [0], "Others": [5], "Total": [0]})
+    
+        os.makedirs("tests/fixtures", exist_ok=True)
+        df1.to_excel("tests/fixtures/np_e1.xlsx", index=False)
+        df2.to_excel("tests/fixtures/np_e2.xlsx", index=False)
+        df3.to_excel("tests/fixtures/np_e3.xlsx", index=False)
+    
+        with open("tests/fixtures/np_e1.xlsx", "rb") as f:
+            client.post(f"/api/sessions/{s_id}/files/excel1", files={"file": ("np_e1.xlsx", f, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")})
+        with open("tests/fixtures/np_e2.xlsx", "rb") as f:
+            client.post(f"/api/sessions/{s_id}/files/excel2", files={"file": ("np_e2.xlsx", f, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")})
+        with open("tests/fixtures/np_e3.xlsx", "rb") as f:
+            client.post(f"/api/sessions/{s_id}/files/excel3", files={"file": ("np_e3.xlsx", f, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")})
+    
+        payload = {
+            "excel1": {"sheet": "Sheet1", "columns": {"job_number": "Job No.", "balance_quantity": "Balance Quantity", "ocs_date": "OCS Date"}},
+            "excel2": {"sheet": "Sheet1", "columns": {"job_number": "Job No.", "inspection_from": "Inspection Attended (From)", "inspection_upto": "Inspection Attended (Upto)"}},
+            "excel3": {"sheet": "Sheet1", "columns": {"job_number": "Job No.", "running_orders": "Running Orders", "orders_for_fd": "Orders For", "ocs_done": "OCS Done", "expediting": "Expediting", "inspection": "Inspection", "others": "Others", "total": "Total"}}
+        }
+        client.post(f"/api/sessions/{s_id}/mapping", json=payload)
+        client.post(f"/api/sessions/{s_id}/evaluation-month", json={"evaluation_month": "2026-08"})
+    
+        resp_calc = client.post(f"/api/sessions/{s_id}/calculations/combined", json={"job_numbers": ["B123"], "evaluation_month": "2026-08"})
+        res = resp_calc.json()[0]
+    
+        # 1. Verify Excel 3 Decoupling (It should use 2 instead of the garbage 25 in Excel 3)
+        # df1 -> bal 5 -> RO 1. Ocs date None -> Ocs done 0. Rule = (1+0)*2=2.
+        assert res["expediting"] == 2
+        assert res["native_expediting_used"] is False
+    
+        # Inspection comes from Excel 2 (2 days)
+>       assert res["inspection"] == 16.0
+E       assert 8.0 == 16.0
+
+tests/test_native_formula_preservation.py:47: AssertionError
+----------------------------- Captured stdout call -----------------------------
+df3 len: 1 df3_matched len: 1
+INTEGER CONVERSION: job=B123, field=e3_ocs, raw=3, parsed=3.0, type=<class 'float'>
+INTEGER CONVERSION: job=B123, field=e3_running_orders, raw=2, parsed=2.0, type=<class 'float'>
+INTEGER CONVERSION: job=B123, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B123, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+_________________________ test_output_custom_workbook __________________________
+
+    def test_output_custom_workbook():
+        resp = client.post("/api/sessions")
+        s_id = resp.json()["session_id"]
+    
+        df1 = pd.DataFrame({
+            "Job No.": ["B224", "B269", "B378"],
+            "Balance Quantity": [10, 10, 10],
+            "OCS Date": ["2026-08-01", "2026-08-01", "2026-08-01"],
+        })
+    
+        df2 = pd.DataFrame({
+            "Job No.": ["B224", "B269", "B378"],
+            "Inspection Attended (From)": [datetime(2026, 8, 1), datetime(2026, 8, 10), datetime(2026, 8, 15)],
+            "Inspection Attended (Upto)": [datetime(2026, 8, 3), datetime(2026, 8, 12), datetime(2026, 8, 18)],
+            "No. of Days": [3, 2, 3]
+        })
+    
+        # Let's create an Excel 3 file with all 14 columns
+        df3 = pd.DataFrame({
+            "Job No": ["B224", "B269", "B378", "EXCLUDE1"],
+            "No. of Running orders": [1, 1, 1, 1],
+            "Orders for FD f/up": [0, 0, 0, 0],
+            "OCS done": [1, 1, 1, 1],
+            "Exp.": [10, 10, 10, 10],
+            "Inspn": [10, 10, 10, 10],
+            "Others": [0, 0, 0, 0],
+            "Total": [20, 20, 20, 20],
+            "*Others/ Remarks": ["Old", "Old", "Old", "Old"],
+            "Insp/ Project Coordinators": ["Old", "Old", "Old", "Old"],
+            "MH available as on": ["Old", "Old", "Old", "Old"],
+            "MH to be released for Aug'26": ["Old", "Old", "Old", "Old"],
+            "Allotted": ["Old", "Old", "Old", "Old"],
+            "8518 reqd": ["Old", "Old", "Old", "Old"],
+        })
+    
+        os.makedirs("tests/fixtures", exist_ok=True)
+        df1.to_excel("tests/fixtures/tmp_e1.xlsx", index=False)
+        df2.to_excel("tests/fixtures/tmp_e2.xlsx", index=False)
+        df3.to_excel("tests/fixtures/tmp_e3.xlsx", index=False)
+    
+        with open("tests/fixtures/tmp_e1.xlsx", "rb") as f:
+            client.post(f"/api/sessions/{s_id}/files/excel1", files={"file": ("tmp_e1.xlsx", f, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")})
+        with open("tests/fixtures/tmp_e2.xlsx", "rb") as f:
+            client.post(f"/api/sessions/{s_id}/files/excel2", files={"file": ("tmp_e2.xlsx", f, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")})
+        with open("tests/fixtures/tmp_e3.xlsx", "rb") as f:
+            client.post(f"/api/sessions/{s_id}/files/excel3", files={"file": ("tmp_e3.xlsx", f, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")})
+    
+        payload = {
+            "excel1": {"sheet": "Sheet1", "columns": {"job_number": "Job No.", "balance_quantity": "Balance Quantity", "ocs_date": "OCS Date"}},
+            "excel2": {"sheet": "Sheet1", "columns": {"job_number": "Job No.", "inspection_from": "Inspection Attended (From)", "inspection_upto": "Inspection Attended (Upto)"}},
+            "excel3": {"sheet": "Sheet1", "columns": {"job_number": "Job No", "running_orders": "No. of Running orders", "orders_for_fd": "Orders for FD f/up", "ocs_done": "OCS done", "expediting": "Exp.", "inspection": "Inspn", "others": "Others", "total": "Total"}}
+        }
+        client.post(f"/api/sessions/{s_id}/mapping", json=payload)
+        client.post(f"/api/sessions/{s_id}/evaluation-month", json={"evaluation_month": "2026-08"})
+        client.post(f"/api/sessions/{s_id}/calculations/combined", json={"job_numbers": ["B224", "B269", "B378"], "evaluation_month": "2026-08"})
+    
+        # Approve them
+        client.post(f"/api/sessions/{s_id}/jobs/B224/approve", json={"acknowledge_warnings": True})
+        client.post(f"/api/sessions/{s_id}/jobs/B269/approve", json={"acknowledge_warnings": True})
+        client.post(f"/api/sessions/{s_id}/jobs/B378/approve", json={"acknowledge_warnings": True})
+    
+        # Generate output
+        resp_gen = client.post(f"/api/sessions/{s_id}/output/generate", json={"job_numbers": ["B224", "B269", "B378"]})
+        assert resp_gen.status_code == 200
+        gen_data = resp_gen.json()
+        assert gen_data["jobs_processed"] == 3
+        output_id = gen_data["output_id"]
+    
+        # Download output
+        resp_dl = client.get(f"/api/sessions/{s_id}/output/download?output_id={output_id}")
+        assert resp_dl.status_code == 200
+    
+        out_path = f"tests/fixtures/downloaded_{s_id}.xlsx"
+        with open(out_path, "wb") as f:
+            f.write(resp_dl.content)
+    
+        wb = openpyxl.load_workbook(out_path, data_only=True)
+        sheet = wb.active
+    
+        # Assert headers exist
+        headers = [str(cell.value) for cell in sheet[1]]
+        assert "Job No" in headers
+        assert "*Others/ Remarks" in headers
+        assert "MH available as on" in headers
+    
+        # Read rows
+        data = list(sheet.iter_rows(min_row=2, values_only=True))
+        assert len(data) == 5 # 3 jobs + Leave + Total
+    
+        jobs_in_out = [row[0] for row in data[:3]]
+        assert jobs_in_out == ["B224", "B269", "B378"] # Exclude 'EXCLUDE1'
+    
+        assert data[3][0] == "Leave"
+        assert data[4][0] == "Total"
+    
+        # Check blank columns for job rows
+        others_idx = headers.index("*Others/ Remarks")
+        for row in data[:3]:
+            assert row[others_idx] is None # Must be blank, not "Old"
+    
+        # Check calculated values
+        b269_row = data[1]
+        insp_idx = headers.index("Inspn")
+>       assert b269_row[insp_idx] == 24 # 2026-08 10 to 12 is 3 days
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       assert 8 == 24
+
+tests/test_output_custom_workbook.py:115: AssertionError
+----------------------------- Captured stdout call -----------------------------
+JOB=B269
+RAW_OCS='2026-08-01'
+PARSED_OCS=2026-08-01
+EVAL_MONTH=2026-08
+WINDOW_START=2026-03-01
+WINDOW_END=2026-08-31
+ELIGIBLE=True
+df3 len: 4 df3_matched len: 3
+INTEGER CONVERSION: job=B224, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B224, field=e3_running_orders, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B224, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B224, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+INTEGER CONVERSION: job=B269, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B269, field=e3_running_orders, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B269, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B269, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+INTEGER CONVERSION: job=B378, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B378, field=e3_running_orders, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B378, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B378, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+df3 len: 4 df3_matched len: 1
+INTEGER CONVERSION: job=B224, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B224, field=e3_running_orders, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B224, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B224, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+df3 len: 4 df3_matched len: 1
+INTEGER CONVERSION: job=B224, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B224, field=e3_running_orders, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B224, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B224, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+REVIEW JOB=B224 EVALUATION_MONTH=Job: B224 INSPECTION_DAYS=8.0 SOURCE=COMBINED_CALCULATION
+df3 len: 4 df3_matched len: 1
+INTEGER CONVERSION: job=B224, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B224, field=e3_running_orders, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B224, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B224, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+df3 len: 4 df3_matched len: 1
+INTEGER CONVERSION: job=B224, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B224, field=e3_running_orders, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B224, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B224, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+REVIEW JOB=B224 EVALUATION_MONTH=Job: B224 INSPECTION_DAYS=8.0 SOURCE=COMBINED_CALCULATION
+JOB=B269
+RAW_OCS='2026-08-01'
+PARSED_OCS=2026-08-01
+EVAL_MONTH=2026-08
+WINDOW_START=2026-03-01
+WINDOW_END=2026-08-31
+ELIGIBLE=True
+df3 len: 4 df3_matched len: 1
+INTEGER CONVERSION: job=B269, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B269, field=e3_running_orders, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B269, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B269, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+JOB=B269
+RAW_OCS='2026-08-01'
+PARSED_OCS=2026-08-01
+EVAL_MONTH=2026-08
+WINDOW_START=2026-03-01
+WINDOW_END=2026-08-31
+ELIGIBLE=True
+df3 len: 4 df3_matched len: 1
+INTEGER CONVERSION: job=B269, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B269, field=e3_running_orders, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B269, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B269, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+REVIEW JOB=B269 EVALUATION_MONTH=Job: B269 INSPECTION_DAYS=8.0 SOURCE=COMBINED_CALCULATION
+JOB=B269
+RAW_OCS='2026-08-01'
+PARSED_OCS=2026-08-01
+EVAL_MONTH=2026-08
+WINDOW_START=2026-03-01
+WINDOW_END=2026-08-31
+ELIGIBLE=True
+df3 len: 4 df3_matched len: 1
+INTEGER CONVERSION: job=B269, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B269, field=e3_running_orders, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B269, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B269, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+JOB=B269
+RAW_OCS='2026-08-01'
+PARSED_OCS=2026-08-01
+EVAL_MONTH=2026-08
+WINDOW_START=2026-03-01
+WINDOW_END=2026-08-31
+ELIGIBLE=True
+df3 len: 4 df3_matched len: 1
+INTEGER CONVERSION: job=B269, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B269, field=e3_running_orders, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B269, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B269, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+REVIEW JOB=B269 EVALUATION_MONTH=Job: B269 INSPECTION_DAYS=8.0 SOURCE=COMBINED_CALCULATION
+df3 len: 4 df3_matched len: 1
+INTEGER CONVERSION: job=B378, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B378, field=e3_running_orders, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B378, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B378, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+df3 len: 4 df3_matched len: 1
+INTEGER CONVERSION: job=B378, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B378, field=e3_running_orders, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B378, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B378, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+REVIEW JOB=B378 EVALUATION_MONTH=Job: B378 INSPECTION_DAYS=8.0 SOURCE=COMBINED_CALCULATION
+df3 len: 4 df3_matched len: 1
+INTEGER CONVERSION: job=B378, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B378, field=e3_running_orders, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B378, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B378, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+df3 len: 4 df3_matched len: 1
+INTEGER CONVERSION: job=B378, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B378, field=e3_running_orders, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B378, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B378, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+REVIEW JOB=B378 EVALUATION_MONTH=Job: B378 INSPECTION_DAYS=8.0 SOURCE=COMBINED_CALCULATION
+JOB=B269
+RAW_OCS='2026-08-01'
+PARSED_OCS=2026-08-01
+EVAL_MONTH=2026-08
+WINDOW_START=2026-03-01
+WINDOW_END=2026-08-31
+ELIGIBLE=True
+df3 len: 4 df3_matched len: 3
+INTEGER CONVERSION: job=B224, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B224, field=e3_running_orders, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B224, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B224, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+INTEGER CONVERSION: job=B269, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B269, field=e3_running_orders, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B269, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B269, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+INTEGER CONVERSION: job=B378, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B378, field=e3_running_orders, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B378, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B378, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+JOB=B269
+RAW_OCS='2026-08-01'
+PARSED_OCS=2026-08-01
+EVAL_MONTH=2026-08
+WINDOW_START=2026-03-01
+WINDOW_END=2026-08-31
+ELIGIBLE=True
+df3 len: 4 df3_matched len: 3
+INTEGER CONVERSION: job=B224, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B224, field=e3_running_orders, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B224, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B224, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+INTEGER CONVERSION: job=B269, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B269, field=e3_running_orders, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B269, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B269, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+INTEGER CONVERSION: job=B378, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B378, field=e3_running_orders, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B378, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=B378, field=expediting, ro=1, ocs_done=0, value=2, type=<class 'int'>
+REVIEW JOB=B224 EVALUATION_MONTH=Job: B224 INSPECTION_DAYS=8.0 SOURCE=COMBINED_CALCULATION
+REVIEW JOB=B269 EVALUATION_MONTH=Job: B269 INSPECTION_DAYS=8.0 SOURCE=COMBINED_CALCULATION
+REVIEW JOB=B378 EVALUATION_MONTH=Job: B378 INSPECTION_DAYS=8.0 SOURCE=COMBINED_CALCULATION
+_________________________ test_inspection_days_integer _________________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7b6b08e9dcd0>
+
+    def test_inspection_days_integer(monkeypatch):
+        # Mock services to return controlled data
+        monkeypatch.setattr("app.services.excel1_rules_service.Excel1RulesService.calculate_rules", lambda *a: [])
+        monkeypatch.setattr("app.services.inspection_rules_service.InspectionRulesService.calculate_rules", lambda *a: [
+            Mock(job_number="B378", total_inspection_days=108.5, valid_records=50, total_others_contribution=0.0) # Assuming it could be float
+        ])
+        monkeypatch.setattr("app.services.session_service.SessionService.get_session", lambda *a: Mock(
+            excel3_file_id="mock_id",
+            evaluation_month="2026-08",
+            mapping=Mock(excel3=Mock(
+                workbook_file_id="mock_id",
+                sheet="Jul25",
+                columns=Mock(ocs_done="OCS done", others="Others", expediting="Exp.", total="Total", job_number="Job No", orders_for_fd="Orders For", inspection="Inspn")
+            ))
+        ))
+        monkeypatch.setattr("app.services.session_service.SessionService.get_df_cache", lambda *a, **kw: None)
+    
+        # Calculate
+        results = CombinedEngineService.calculate_combined("test_session", ["B378"])
+    
+        assert len(results) == 1
+        # Check that Inspection Days is cast to integer without multiplying by 8
+>       assert results[0].inspection == 864.0
+E       AssertionError: assert 400.0 == 864.0
+E        +  where 400.0 = CombinedJobSummary(job_number='B378', fd=0, running_orders=0, ocs_done=0.0, expediting=0, native_expediting_used=False...: Excel 2 (Filtered for 2026-08)', 'Meeting: 0.0', '  Source: Default (0.0)', 'Calculated Total: 400.0'], lineage=None).inspection
+
+tests/test_phase11_lineage.py:35: AssertionError
+----------------------------- Captured stdout call -----------------------------
+df3 len: None df3_matched len: 0
+INTEGER CONVERSION: job=B378, field=e2_inspection_count, value=50, type=<class 'int'>
+INTEGER CONVERSION: job=B378, field=expediting, ro=0, ocs_done=0, value=0, type=<class 'int'>
+_________________________ test_evidence_string_lineage _________________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7b6b08f1fec0>
+
+    def test_evidence_string_lineage(monkeypatch):
+        monkeypatch.setattr("app.services.excel1_rules_service.Excel1RulesService.calculate_rules", lambda *a: [
+            Mock(job_number="B378", fd=1, running_orders=11, ocs_done=1)
+        ])
+        monkeypatch.setattr("app.services.inspection_rules_service.InspectionRulesService.calculate_rules", lambda *a: [
+            Mock(job_number="B378", total_inspection_days=108, valid_records=50, total_others_contribution=0.0)
+        ])
+    
+        import pandas as pd
+        df3_mock = pd.DataFrame({
+            "Job No": ["B378"],
+            "OCS done": [1],
+            "Exp.": [24],
+            "Inspn": [108],
+            "Others": [16],
+            "Total": [56],
+        })
+    
+        monkeypatch.setattr("app.services.session_service.SessionService.get_session", lambda *a: Mock(
+            excel3_file_id="mock_id",
+            evaluation_month="2026-08",
+            mapping=Mock(excel3=Mock(
+                workbook_file_id="mock_id",
+                sheet="Jul25",
+                columns=Mock(ocs_done="OCS done", others="Others", expediting="Exp.", total="Total", job_number="Job No", orders_for_fd="Orders For", inspection="Inspn")
+            ))
+        ))
+        monkeypatch.setattr("app.services.session_service.SessionService.get_df_cache", lambda *a, **kw: df3_mock)
+    
+        results = CombinedEngineService.calculate_combined("test_session", ["B378"])
+    
+        assert len(results) == 1
+        res = results[0]
+    
+        assert res.expediting == 24 # (11 + 1) * 2 = 24
+>       assert res.inspection == 864.0
+E       AssertionError: assert 400.0 == 864.0
+E        +  where 400.0 = CombinedJobSummary(job_number='B378', fd=1, running_orders=11, ocs_done=1.0, expediting=24, native_expediting_used=Fal...: Excel 2 (Filtered for 2026-08)', 'Meeting: 0.0', '  Source: Default (0.0)', 'Calculated Total: 424.0'], lineage=None).inspection
+
+tests/test_phase11_lineage.py:77: AssertionError
+----------------------------- Captured stdout call -----------------------------
+df3 len: 1 df3_matched len: 1
+INTEGER CONVERSION: job=B378, field=e3_ocs, raw=1, parsed=1.0, type=<class 'float'>
+INTEGER CONVERSION: job=B378, field=e2_inspection_count, value=50, type=<class 'int'>
+INTEGER CONVERSION: job=B378, field=expediting, ro=11, ocs_done=1, value=24, type=<class 'int'>
+____________________________ test_review_overrides _____________________________
+
+setup_review_session = 'd9be1acd-bd6f-4553-91ba-f806d16794ac'
+
+    def test_review_overrides(setup_review_session):
+        s_id = setup_review_session
+    
+        # Setup baseline tracking
+        resp = client.post(f"/api/sessions/{s_id}/review", json={"job_numbers": ["J_FULL", "J_BLOCKED", "J_WARN"]})
+        assert resp.status_code == 200
+    
+        # 1. Valid OCS Done override updates Expediting & Total
+        resp = client.post(f"/api/sessions/{s_id}/jobs/J_FULL/overrides", json={"field": "ocs_done", "value": 4, "reason": "Test reason"})
+        assert resp.status_code == 200
+        res = resp.json()
+        assert res["ocs_done"] == 4
+        assert res["expediting"] == (3+4)*2
+>       assert res["calculated_total"] == 14 + 24 + 0
+E       assert 22.0 == ((14 + 24) + 0)
+
+tests/test_review_workflow.py:91: AssertionError
+----------------------------- Captured stdout call -----------------------------
+df3 len: 3 df3_matched len: 3
+INTEGER CONVERSION: job=J_FULL, field=e3_ocs, raw=2, parsed=2.0, type=<class 'float'>
+INTEGER CONVERSION: job=J_FULL, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=J_FULL, field=expediting, ro=3, ocs_done=0, value=6, type=<class 'int'>
+INTEGER CONVERSION: job=J_BLOCKED, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=J_BLOCKED, field=expediting, ro=3, ocs_done=0, value=6, type=<class 'int'>
+INTEGER CONVERSION: job=J_WARN, field=e3_ocs, raw=2, parsed=2.0, type=<class 'float'>
+INTEGER CONVERSION: job=J_WARN, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=J_WARN, field=expediting, ro=3, ocs_done=0, value=6, type=<class 'int'>
+df3 len: 3 df3_matched len: 3
+INTEGER CONVERSION: job=J_FULL, field=e3_ocs, raw=2, parsed=2.0, type=<class 'float'>
+INTEGER CONVERSION: job=J_FULL, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=J_FULL, field=expediting, ro=3, ocs_done=0, value=6, type=<class 'int'>
+INTEGER CONVERSION: job=J_BLOCKED, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=J_BLOCKED, field=expediting, ro=3, ocs_done=0, value=6, type=<class 'int'>
+INTEGER CONVERSION: job=J_WARN, field=e3_ocs, raw=2, parsed=2.0, type=<class 'float'>
+INTEGER CONVERSION: job=J_WARN, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=J_WARN, field=expediting, ro=3, ocs_done=0, value=6, type=<class 'int'>
+REVIEW JOB=J_FULL EVALUATION_MONTH=Job: J_FULL INSPECTION_DAYS=8.0 SOURCE=COMBINED_CALCULATION
+REVIEW JOB=J_BLOCKED EVALUATION_MONTH=Job: J_BLOCKED INSPECTION_DAYS=8.0 SOURCE=COMBINED_CALCULATION
+REVIEW JOB=J_WARN EVALUATION_MONTH=Job: J_WARN INSPECTION_DAYS=8.0 SOURCE=COMBINED_CALCULATION
+df3 len: 3 df3_matched len: 1
+INTEGER CONVERSION: job=J_FULL, field=e3_ocs, raw=2, parsed=2.0, type=<class 'float'>
+INTEGER CONVERSION: job=J_FULL, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=J_FULL, field=expediting, ro=3, ocs_done=0, value=6, type=<class 'int'>
+df3 len: 3 df3_matched len: 1
+INTEGER CONVERSION: job=J_FULL, field=e3_ocs, raw=2, parsed=2.0, type=<class 'float'>
+INTEGER CONVERSION: job=J_FULL, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=J_FULL, field=expediting, ro=3, ocs_done=0, value=6, type=<class 'int'>
+df3 len: 3 df3_matched len: 1
+INTEGER CONVERSION: job=J_FULL, field=e3_ocs, raw=2, parsed=2.0, type=<class 'float'>
+INTEGER CONVERSION: job=J_FULL, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=J_FULL, field=expediting, ro=3, ocs_done=4.0, value=14.0, type=<class 'float'>
+REVIEW JOB=J_FULL EVALUATION_MONTH=Job: J_FULL INSPECTION_DAYS=8.0 SOURCE=COMBINED_CALCULATION
+______________________________ test_review_resets ______________________________
+
+setup_review_session = 'd9be1acd-bd6f-4553-91ba-f806d16794ac'
+
+    def test_review_resets(setup_review_session):
+        s_id = setup_review_session
+    
+        resp = client.post(f"/api/sessions/{s_id}/jobs/J_FULL/reset-overrides")
+        assert resp.status_code == 200
+        res = resp.json()
+        assert res["ocs_done"] == 0 # Reset to 0 (default from Excel 1)
+        assert res["others"] == 0 # Reset to 0 (default)
+>       assert res["calculated_total"] == 30.0 # (3+0)*2 + 24 + 0
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       assert 14.0 == 30.0
+
+tests/test_review_workflow.py:126: AssertionError
+----------------------------- Captured stdout call -----------------------------
+df3 len: 3 df3_matched len: 1
+INTEGER CONVERSION: job=J_FULL, field=e3_ocs, raw=2, parsed=2.0, type=<class 'float'>
+INTEGER CONVERSION: job=J_FULL, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=J_FULL, field=expediting, ro=3, ocs_done=0, value=6, type=<class 'int'>
+df3 len: 3 df3_matched len: 1
+INTEGER CONVERSION: job=J_FULL, field=e3_ocs, raw=2, parsed=2.0, type=<class 'float'>
+INTEGER CONVERSION: job=J_FULL, field=e2_inspection_count, value=1, type=<class 'int'>
+INTEGER CONVERSION: job=J_FULL, field=expediting, ro=3, ocs_done=0, value=6, type=<class 'int'>
+REVIEW JOB=J_FULL EVALUATION_MONTH=Job: J_FULL INSPECTION_DAYS=8.0 SOURCE=COMBINED_CALCULATION
+=============================== warnings summary ===============================
+../venv/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /home/1RV24MC093_SANDARSH_J_N/projects/eil1/venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_inspection_attended_logic.py::test_inspection_attended_calculation_isolation
+FAILED tests/test_native_formula_preservation.py::test_native_formula_and_overrides
+FAILED tests/test_output_custom_workbook.py::test_output_custom_workbook - as...
+FAILED tests/test_phase11_lineage.py::test_inspection_days_integer - Assertio...
+FAILED tests/test_phase11_lineage.py::test_evidence_string_lineage - Assertio...
+FAILED tests/test_review_workflow.py::test_review_overrides - assert 22.0 == ...
+FAILED tests/test_review_workflow.py::test_review_resets - assert 14.0 == 30.0
+==================== 7 failed, 3 passed, 1 warning in 1.29s ====================
